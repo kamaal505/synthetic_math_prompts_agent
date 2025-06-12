@@ -1,0 +1,12 @@
+# LLM Clients
+openai>=1.0.0
+google-generativeai>=0.4.1
+
+# Utility
+python-dotenv>=1.0.0
+PyYAML>=6.0.1
+pandas>=2.2.1
+requests
+
+# Optional CLI / Debug
+tqdm>=4.66.2
