@@ -6,9 +6,9 @@ You are a highly skilled synthetic problem engineer for mathematical question ge
 3. It must not be a meaningless mix of jargon ("word salad").
 4. It must be fully self-contained.
 5. After generating the problem, give a correct final answer.
-6. Then, provide step-by-step hints in the form of a list of strings.
+6. Then, provide step-by-step hints as a dictionary, where each key is a stringified index ("0", "1", ...) and each value is a string representing a hint.
 
-The "hints" list MUST NOT be empty.
+The "hints" dictionary MUST contain at least 3 entries.
 
 Return strictly valid JSON with this format:
 {
@@ -16,39 +16,41 @@ Return strictly valid JSON with this format:
   "topic": "string",
   "problem": "string",
   "answer": "string",
-  "hints": [
-    "First hint goes here.",
-    "Second hint goes here.",
+  "hints": {
+    "0": "First hint...",
+    "1": "Second hint...",
     ...
-  ]
+  }
 }
 """
+
 HINT_ONLY_MESSAGE = """
-You are an expert tutor. Given a math problem and its correct answer, your task is to generate a helpful, logically sound, step-by-step list of hints to guide a student toward solving it.
+You are an expert tutor. Given a math problem and its correct answer, your task is to generate a helpful, logically sound, step-by-step dictionary of hints to guide a student toward solving it.
 
 Your response must be a valid JSON object of the form:
 {
-  "hints": [
-    "First, identify that the integral has a pole at x = 0.",
-    "Now consider using the substitution u = x^2.",
+  "hints": {
+    "0": "First hint goes here.",
+    "1": "Second hint goes here.",
     ...
-  ]
+  }
 }
 
 Instructions:
-- You MUST return a JSON object with a key called "hints" mapped to a list of hint strings.
+- You MUST return a JSON object with a key called "hints" mapped to a dictionary of stringified indices and hint strings.
 - Include at least 3 clear, logically progressive hints.
 - You ARE allowed to use LaTeX-style formatting (e.g., \\int, \\frac, \\langle) where helpful.
 - Do NOT include markdown syntax (e.g., ```), code blocks, or non-JSON commentary.
 """
+
 CHECKER_MESSAGE = """
 You are a mathematical proof and logic checker.
 
 For standard validation:
 - Check if the final answer is justified by the hints and logically sound.
-- If some hints are incorrect or misleading, provide corrected versions for those.
+- If some hints are incorrect or misleading, provide corrected versions for those as a dictionary.
 - If most hints are correct, preserve them and only rewrite the flawed ones.
-- Only regenerate the full list if the entire hint chain is invalid or incomplete.
+- Only regenerate the full set if all hints are flawed.
 
 For equivalence checking:
 - You will receive a "true_answer" and a "model_answer". Assess whether they are mathematically equivalent — not just textually similar.
@@ -58,11 +60,10 @@ Output JSON:
 {
   "valid": true or false,
   "reason": "...",
-  "corrected_hints": [
-    "Only include this field if one or more hints require revision.",
-    "Use a full replacement only if necessary.",
-    "Return a clean list of logically sound, sequential hints."
-  ]
+  "corrected_hints": {
+    "0": "...",
+    "1": "..."
+  }
 }
 
 Instructions:

@@ -14,7 +14,7 @@ def model_attempts_answer(problem_text):
     ]
 
     response = client.chat.completions.create(
-        model="o1",
+        model="gpt-4o-mini",
         messages=messages,
         temperature=1.0
     )

@@ -59,6 +59,11 @@ def generate_problem_shell(seed=None, subject=None, topic=None):
         "answer": data["answer"]
     }
 
+def dictify_hints(hints):
+    if isinstance(hints, list):
+        return {str(i): h for i, h in enumerate(hints)}
+    return hints
+
 def generate_hints(problem, answer):
     retries = 0
     while True:
@@ -69,15 +74,14 @@ def generate_hints(problem, answer):
         ]
         try:
             result = call_gemini(messages)
-            hints = result.get("hints", [])
+            hints = result.get("hints", {})
 
-            # 🧼 SANITIZER: convert dict-style hints to list (if model misbehaves)
-            if isinstance(hints, dict):
-                hints = [hints[k] for k in sorted(hints, key=lambda x: int(x) if x.isdigit() else x)]
+            if isinstance(hints, list):  # sanitize if needed
+                hints = dictify_hints(hints)
 
             print(f"\n🧾 Gemini response (attempt {retries}):", hints)
-            if isinstance(hints, list) and any(h.strip() for h in hints):
-                print(f"✅ Non-empty hint list received on attempt {retries}")
+            if isinstance(hints, dict) and any(h.strip() for h in hints.values()):
+                print(f"✅ Non-empty hint dict received on attempt {retries}")
                 return hints
             else:
                 print(f"❌ Empty or malformed hints on attempt {retries}. Retrying...")
