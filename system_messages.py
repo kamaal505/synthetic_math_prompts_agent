@@ -6,9 +6,9 @@ You are a highly skilled synthetic problem engineer for mathematical question ge
 3. It must not be a meaningless mix of jargon ("word salad").
 4. It must be fully self-contained.
 5. After generating the problem, give a correct final answer.
-6. Then, provide step-by-step hints in the form of a dictionary: keys are strings like "1", "2", ..., and values are the corresponding hint texts.
+6. Then, provide step-by-step hints in the form of a list of strings.
 
-Do not leave the "hints" dictionary empty.
+The "hints" list MUST NOT be empty.
 
 Return strictly valid JSON with this format:
 {
@@ -16,14 +16,13 @@ Return strictly valid JSON with this format:
   "topic": "string",
   "problem": "string",
   "answer": "string",
-  "hints": {
-    "1": "hint string",
-    "2": "hint string",
+  "hints": [
+    "First hint goes here.",
+    "Second hint goes here.",
     ...
-  }
+  ]
 }
 """
-
 HINT_ONLY_MESSAGE = """
 You are an expert tutor. Given a math problem and its correct answer, your task is to generate a helpful, logically sound, step-by-step list of hints to guide a student toward solving it.
 
@@ -42,12 +41,14 @@ Instructions:
 - You ARE allowed to use LaTeX-style formatting (e.g., \\int, \\frac, \\langle) where helpful.
 - Do NOT include markdown syntax (e.g., ```), code blocks, or non-JSON commentary.
 """
-
 CHECKER_MESSAGE = """
 You are a mathematical proof and logic checker.
 
 For standard validation:
 - Check if the final answer is justified by the hints and logically sound.
+- If some hints are incorrect or misleading, provide corrected versions for those.
+- If most hints are correct, preserve them and only rewrite the flawed ones.
+- Only regenerate the full list if the entire hint chain is invalid or incomplete.
 
 For equivalence checking:
 - You will receive a "true_answer" and a "model_answer". Assess whether they are mathematically equivalent — not just textually similar.
@@ -57,6 +58,15 @@ Output JSON:
 {
   "valid": true or false,
   "reason": "...",
-  "corrected_hints": { "1": "...", ... }  // if relevant
+  "corrected_hints": [
+    "Only include this field if one or more hints require revision.",
+    "Use a full replacement only if necessary.",
+    "Return a clean list of logically sound, sequential hints."
+  ]
 }
+
+Instructions:
+- Do NOT include markdown formatting, LaTeX wrappers, or code blocks.
+- If no correction is needed, either omit "corrected_hints" or leave it out entirely.
+- If some hints are kept as-is, you may copy them into the output list to preserve continuity.
 """

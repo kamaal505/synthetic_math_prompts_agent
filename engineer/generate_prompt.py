@@ -16,20 +16,8 @@ GOOGLE_API_KEY = os.getenv("GEMINI_KEY")
 genai.configure(api_key=GOOGLE_API_KEY)
 model = genai.GenerativeModel(model_name="gemini-2.5-pro-preview-06-05")
 
-
-def safe_json_parse(raw_text):
-    try:
-        return json.loads(raw_text.strip())
-    except json.JSONDecodeError as e:
-        print("⚠️ Failed JSON from Gemini:", raw_text)
-        raise ValueError(f"Gemini output is not valid JSON: {e}")
-
-import re
-
 def safe_json_parse(raw_text):
     raw_text = raw_text.strip()
-
-    # Remove wrapping markdown fences
     if raw_text.startswith("```json"):
         raw_text = raw_text[7:]
     elif raw_text.startswith("```"):
@@ -37,7 +25,7 @@ def safe_json_parse(raw_text):
     if raw_text.endswith("```"):
         raw_text = raw_text[:-3]
 
-    # Fix LaTeX-style escapes: replace \ with \\
+    # Fix LaTeX-style escapes
     raw_text = re.sub(r'(?<!\\)\\(?![\\nt"\\/bfr])', r'\\\\', raw_text)
 
     try:
@@ -82,6 +70,11 @@ def generate_hints(problem, answer):
         try:
             result = call_gemini(messages)
             hints = result.get("hints", [])
+
+            # 🧼 SANITIZER: convert dict-style hints to list (if model misbehaves)
+            if isinstance(hints, dict):
+                hints = [hints[k] for k in sorted(hints, key=lambda x: int(x) if x.isdigit() else x)]
+
             print(f"\n🧾 Gemini response (attempt {retries}):", hints)
             if isinstance(hints, list) and any(h.strip() for h in hints):
                 print(f"✅ Non-empty hint list received on attempt {retries}")

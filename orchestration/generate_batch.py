@@ -36,12 +36,31 @@ def run_generation_pipeline(config):
             core["hints"] = generate_hints(core["problem"], core["answer"])
 
             result = validate_problem(core, mode="initial")
+            corrected_hints = result.get("corrected_hints")
+            core["hints_were_corrected"] = bool(corrected_hints) and isinstance(corrected_hints, list) and any(h.strip() for h in corrected_hints)
+
             if not result["valid"]:
                 print(f"❌ Rejected: {result.get('reason', '')}")
                 discarded.append({**core, "rejection_reason": result.get("reason", "")})
                 continue
 
-            core["hints"] = result.get("corrected_hints", core["hints"])
+            corrected_hints = result.get("corrected_hints")
+
+            if isinstance(corrected_hints, list) and corrected_hints:
+                if len(corrected_hints) == len(core["hints"]):
+                    diffs = sum(1 for a, b in zip(core["hints"], corrected_hints) if a.strip() != b.strip())
+                    print(f"✍️ Checker provided corrected hints — revised {diffs} of {len(corrected_hints)}.")
+                else:
+                    print("✍️ Checker replaced the entire hint list (different length).")
+
+                core["hints"] = corrected_hints
+
+            elif isinstance(corrected_hints, list) and not corrected_hints:
+                print("⚠️ Checker returned an empty corrected_hints list — keeping original.")
+
+            else:
+                print("✅ Keeping original hints from hint generator.")
+
             model_response = model_attempts_answer(core["problem"])
             core["target_model_answer"] = model_response
 
