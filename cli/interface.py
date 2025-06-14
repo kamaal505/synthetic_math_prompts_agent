@@ -16,11 +16,21 @@ def main():
                         help="Batch ID for output (e.g., batch_03)")
     parser.add_argument("--num-problems", type=int,
                         help="Override the number of problems to generate")
+    parser.add_argument("--target-provider", type=str,
+                    help="Override target model provider (e.g., openai, deepseek, gemini)")
+    parser.add_argument("--target-model", type=str,
+                    help="Override target model name (e.g., o1, deepseek-math, gemini-2.5)")
+
 
     args = parser.parse_args()
 
     # Load settings
     config = load_config(args.config)
+    if args.target_provider:
+        config["target_model"]["provider"] = args.target_provider
+    if args.target_model:
+        config["target_model"]["model_name"] = args.target_model
+
     batch_id = args.batch_id or config.get("default_batch_id", "batch_01")
 
     # CLI override

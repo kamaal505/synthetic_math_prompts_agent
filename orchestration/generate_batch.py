@@ -65,7 +65,7 @@ def run_generation_pipeline(config):
                 print("✅ Keeping original hints from hint generator.")
 
             # 🤖 Run the model's attempt at solving the problem
-            model_response = model_attempts_answer(core["problem"])
+            model_response = model_attempts_answer(core["problem"], config["target_model"])
             core["target_model_answer"] = model_response
 
             # 🧪 Check model's answer against ground truth

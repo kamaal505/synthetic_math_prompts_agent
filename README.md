@@ -11,13 +11,13 @@ It uses a multi-stage agent framework that ensures **only validated and model-br
 
 ## 🧩 Architecture Overview
 
-| Stage        | Agent        | LLM             | Purpose                                    |
-|--------------|--------------|------------------|--------------------------------------------|
-| 1. Generate  | Engineer     | Gemini 2.5 Pro    | Create problem and answer                  |
-| 2. Hint      | Engineer     | Gemini 2.5 Pro    | Generate step-by-step hints                |
-| 3. Validate  | Checker      | OpenAI o3-mini    | Ensure mathematical validity               |
-| 4. Challenge | Target Model | OpenAI o1         | Attempt to solve the problem               |
-| 5. Judge     | Checker      | OpenAI o3-mini    | Check if the model’s answer is equivalent  |
+| Stage        | Agent        | LLM               | Purpose                                    |
+|--------------|--------------|-------------------|--------------------------------------------|
+| 1. Generate  | Engineer     | Gemini 2.5 Pro     | Create problem and answer                  |
+| 2. Hint      | Engineer     | Gemini 2.5 Pro     | Generate step-by-step hints                |
+| 3. Validate  | Checker      | OpenAI o3-mini     | Ensure mathematical validity               |
+| 4. Challenge | Target Model | OpenAI o1 (default)| Attempt to solve the problem               |
+| 5. Judge     | Checker      | OpenAI o3-mini     | Check if the model’s answer is equivalent  |
 
 ---
 
@@ -42,29 +42,76 @@ Create a `.env` file in the root:
 ```dotenv
 GEMINI_KEY=your_gemini_api_key
 OPENAI_KEY=your_openai_api_key
+DEEPSEEK_KEY=your_fireworks_api_key  # Optional, for DeepSeek-R1 via Fireworks
 ```
 
 ---
 
 ## ▶️ Running the Generator
 
-To generate a batch of validated, model-breaking prompts:
+To generate a batch of validated, model-breaking prompts using default settings:
 
 ```bash
-python -m cli.interface --batch-id batch_test
+python -m cli.interface --batch-id batch_01
 ```
 
-To override the number of prompts (e.g. generate 1 instead of the default 10):
+By default, this will:
 
-```bash
-python -m cli.interface --batch-id test_batch --num-problems 1
-```
-
-This will:
-
-* Load settings from `config/settings.yaml`
-* Create a new folder under `results/test_batch`
+* Use the target model from `config/settings.yaml` (typically OpenAI `o1`)
+* Generate the number of problems specified in YAML
+* Create a new results folder under `results/batch_01`
 * Save accepted and rejected prompts as JSON files
+
+---
+
+## 🛠 CLI Override Examples
+
+These examples let you override YAML settings from the command line:
+
+### 1. ✅ Run with all defaults (batch ID, model, number of problems)
+
+```bash
+python -m cli.interface --batch-id batch_01
+```
+
+### 2. 🗃 Override the batch ID
+
+```bash
+python -m cli.interface --batch-id my_custom_batch
+```
+
+### 3. 🔢 Override the number of problems
+
+```bash
+python -m cli.interface --batch-id test_batch --num-problems 3
+```
+
+### 4. 🤖 Use **DeepSeek R1** via Fireworks
+
+```bash
+python -m cli.interface \
+  --batch-id deepseek_batch \
+  --target-provider deepseek \
+  --target-model accounts/fireworks/models/deepseek-r1
+```
+
+### 5. 🧠 Use an **OpenAI** model other than `o1` (e.g. `gpt-4`)
+
+```bash
+python -m cli.interface \
+  --batch-id gpt4_batch \
+  --target-provider openai \
+  --target-model gpt-4
+```
+
+### 6. 🔮 Use a **Gemini** model (e.g. `gemini-1.5-pro`)
+
+```bash
+python -m cli.interface \
+  --batch-id gemini_batch \
+  --target-provider gemini \
+  --target-model gemini-1.5-pro
+```
 
 ---
 
@@ -89,14 +136,19 @@ subjects:
 output_dir: "./results"
 default_batch_id: "batch_01"
 
-use_search: false  # (Planned) Enable web search augmentation
+use_search: false
+
+target_model:
+  provider: "openai"
+  model_name: "o1"
 ```
 
 You can edit this file to control:
 
 * Number of problems per batch
 * Subject/topic coverage
-* Output directory
+* Output location
+* Default target model/provider (can be overridden via CLI)
 
 ---
 
@@ -110,11 +162,11 @@ Accepted prompts are saved in `valid.json`:
   "topic": "Galois Theory",
   "problem": "Let f(x) be a cubic polynomial...",
   "answer": "G = {(σ, τ) ∈ S₃ × S₃ | sgn(σ) = sgn(τ)}",
-  "hints": [
-    "First, identify the splitting fields for both polynomials.",
-    "Next, consider the compositum field and how automorphisms act.",
-    "Finally, determine the group structure under the sign condition."
-  ],
+  "hints": {
+    "0": "First, identify the splitting fields for both polynomials.",
+    "1": "Next, consider the compositum field and how automorphisms act.",
+    "2": "Finally, determine the group structure under the sign condition."
+  },
   "target_model_answer": "G = {(σ, τ) in S₃ × S₃ : sgn(σ) = sgn(τ)}"
 }
 ```
@@ -127,41 +179,30 @@ Rejected prompts (either invalid or answered correctly by the model) are saved i
 
 A prompt is accepted **only if:**
 
-* ✅ It is **mathematically valid** (problem, answer, hints pass the checker)
+* ✅ It is **mathematically valid** (problem, answer, and hints pass validation)
 * ❌ And the **target model fails** to produce a semantically equivalent answer
 
-Prompts that are valid but **solved correctly** by the model are **discarded**.
+Prompts that are valid but **solved correctly** by the model are discarded.
 
 ---
 
 ## 📌 To-Do / Future Enhancements
 
 * [ ] **Web Search (via MCP)**
-  Incorporate external knowledge to create more realistic prompts.
-
 * [ ] **Rejected Prompt Database**
-  Track model-passed problems for regression and fine-tuning.
-
 * [ ] **Expanding Taxonomy**
-  Add capability for greater taxonomy of math domains.
-
 * [ ] **Reviewer UI**
-  Build a dashboard to browse, rate, or audit prompts manually.
-
 * [ ] **Difficulty Calibration**
-  Use token curves or semantic metrics to score complexity.
-
 * [ ] **Prompt Variants**
-  Generate multiple mutations of each validated prompt.
 
 ---
 
 ## 🛠 Debugging Tips
 
-* Gemini sometimes emits invalid JSON. The script will retry until it receives clean output.
-* Hints are now stored as a **list of strings**, not a dictionary.
-* If your laptop sleeps, the script may freeze mid-run. Disable sleep or run on a persistent machine.
-* To debug what Gemini is returning, uncomment the print statement in `generate_hints()`.
+* Gemini sometimes emits invalid JSON. The script will retry until valid output is received.
+* Hints are stored as a **dictionary** of index-to-string mappings.
+* If your machine sleeps mid-run, the script may freeze. Consider running on a persistent setup.
+* To inspect Gemini's responses, uncomment the print statement in `generate_hints()`.
 
 ---
 

@@ -18,3 +18,8 @@ default_batch_id: "batch_01"
 
 # If true, use internet search to augment prompt ideas
 use_search: false
+
+target_model:
+  provider: "openai"
+  model_name: "o1"
+
