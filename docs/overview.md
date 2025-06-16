@@ -437,10 +437,10 @@ graph TD;
     E --> F;
 
     subgraph "Main Workflow Stages (User Perspective)"
-        F --> G1["1. Problem Generation (Engineering)"];
-        G1 --> G2["2. Validation (Checking)"];
+        F --> G1["1 Problem Generation (Engineering)"];
+        G1 --> G2["2 Validation (Checking)"];
         G2 --> G3{Benchmarking Enabled?};
-        G3 -- Yes --> G4["3. Optional Benchmarking/Evaluation"];
+        G3 -- Yes --> G4["3 Optional Benchmarking/Evaluation"];
         G3 -- No --> G5;
         G4 --> G5["4. Saving Results"];
     end
