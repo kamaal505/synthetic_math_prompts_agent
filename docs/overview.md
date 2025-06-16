@@ -1,4 +1,4 @@
-# Codebase Overview
+# Synthetic Math Prompt Generation Overview
 
 This document provides a comprehensive overview of the synthetic math prompt generation tool, including its core modules, system architecture, and user workflows. It is intended to help developers, contributors, and users understand the structure, responsibilities, and operational flow of the codebase.
 
