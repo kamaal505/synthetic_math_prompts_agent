@@ -1,7 +1,7 @@
 import yaml
 from pathlib import Path
 from random import choice
-from engineer.generate_prompt import generate_problem_shell, generate_hints
+from engineer.generate_prompt import generate_full_problem
 from checker.validate_prompt import validate_problem
 from orchestration.evaluate_target_model import model_attempts_answer
 
@@ -30,12 +30,9 @@ def run_generation_pipeline(config):
         seed_prompt = get_seed_prompt(subject, topic) if get_seed_prompt else None
 
         try:
-            metadata = {"subject": subject, "topic": topic}
-            core = generate_problem_shell(seed=seed_prompt, subject=subject, topic=topic)
-            core.update(metadata)
-
-            # 🔄 Generate hints as dictionary
-            core["hints"] = generate_hints(core["problem"], core["answer"])
+            # 🔁 Generate full problem + hints in one LLM call
+            core = generate_full_problem(seed=seed_prompt, subject=subject, topic=topic)
+            core.update({"subject": subject, "topic": topic})
 
             # ✅ Validate problem and hints
             result = validate_problem(core, mode="initial")
@@ -62,7 +59,7 @@ def run_generation_pipeline(config):
                 print("⚠️ Checker returned empty corrected_hints — keeping original.")
 
             else:
-                print("✅ Keeping original hints from hint generator.")
+                print("✅ Keeping original hints from generator.")
 
             # 🤖 Run the model's attempt at solving the problem
             model_response = model_attempts_answer(core["problem"], config["target_model"])

@@ -5,11 +5,11 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 
 try:
-    from system_messages import ENGINEER_MESSAGE, HINT_ONLY_MESSAGE
+    from system_messages import ENGINEER_MESSAGE
 except ModuleNotFoundError:
     import sys
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-    from system_messages import ENGINEER_MESSAGE, HINT_ONLY_MESSAGE
+    from system_messages import ENGINEER_MESSAGE
 
 load_dotenv()
 GOOGLE_API_KEY = os.getenv("GEMINI_KEY")
@@ -40,10 +40,10 @@ def call_gemini(messages):
     response = model.generate_content(prompt)
     return safe_json_parse(response.text)
 
-def generate_problem_shell(seed=None, subject=None, topic=None):
-    user_prompt = "Generate a new problem as instructed."
+def generate_full_problem(seed=None, subject=None, topic=None):
+    user_prompt = "Generate a new math problem with hints."
     if subject and topic:
-        user_prompt = f"Generate a math problem in {subject} under the topic '{topic}'."
+        user_prompt = f"Generate a math problem in {subject} under the topic '{topic}' with hints."
     if seed:
         user_prompt += f"\nUse this real-world example as inspiration:\n{seed}"
 
@@ -52,38 +52,15 @@ def generate_problem_shell(seed=None, subject=None, topic=None):
         {"role": "user", "content": user_prompt}
     ]
     data = call_gemini(messages)
+
+    if not isinstance(data.get("hints"), dict) or len(data["hints"]) < 3:
+        raise ValueError("Invalid or too few hints returned.")
+
+    print(f"✅ Problem generated with {len(data['hints'])} hints.")
     return {
         "subject": data["subject"],
         "topic": data["topic"],
         "problem": data["problem"],
-        "answer": data["answer"]
+        "answer": data["answer"],
+        "hints": data["hints"]
     }
-
-def dictify_hints(hints):
-    if isinstance(hints, list):
-        return {str(i): h for i, h in enumerate(hints)}
-    return hints
-
-def generate_hints(problem, answer):
-    retries = 0
-    while True:
-        retries += 1
-        messages = [
-            {"role": "system", "content": HINT_ONLY_MESSAGE},
-            {"role": "user", "content": json.dumps({"problem": problem, "answer": answer})}
-        ]
-        try:
-            result = call_gemini(messages)
-            hints = result.get("hints", {})
-
-            if isinstance(hints, list):  # sanitize if needed
-                hints = dictify_hints(hints)
-
-            print(f"\n🧾 Gemini response (attempt {retries}):", hints)
-            if isinstance(hints, dict) and any(h.strip() for h in hints.values()):
-                print(f"✅ Non-empty hint dict received on attempt {retries}")
-                return hints
-            else:
-                print(f"❌ Empty or malformed hints on attempt {retries}. Retrying...")
-        except Exception as e:
-            print(f"⚠️ Hint parsing failed (attempt {retries}): {e}")
