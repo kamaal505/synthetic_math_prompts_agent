@@ -15,13 +15,12 @@ This document provides detailed descriptions of each significant Python module i
 #### [`system_messages.py`](system_messages.py)
 
 **Primary Purpose:**  
-Defines system prompt templates (as multi-line strings) for use with LLMs in various roles: problem engineering, hint generation, and answer checking.
+Defines system prompt templates (as multi-line strings) for use with LLMs in various roles: datapoint (problem, final answer and hints json) engineering and datapoint validation.
 
 **Key Functions/Classes:**  
 
 - No functions or classes; contains string constants:
-  - `ENGINEER_MESSAGE`: Instructions for generating challenging, well-formed math problems and hints.
-  - `HINT_ONLY_MESSAGE`: Instructions for generating only hints for a given problem and answer.
+  - `ENGINEER_MESSAGE`: Instructions for generating challenging, well-formed math problems and corresponding answers and hints.
   - `CHECKER_MESSAGE`: Instructions for validating the logical soundness of answers and hints.
 
 **Interactions:**  
@@ -39,6 +38,8 @@ Validates generated math problems and hints using an LLM (OpenAI), ensuring logi
 
 **Key Functions/Classes:**  
 
+- `safe_json_parse(raw_text)`:  
+  Cleans and parses raw LLM output into valid JSON, handling code block markers and LaTeX escapes.
 - `call_openai(messages: List[Dict[str, str]]) -> dict`:  
   Sends a chat completion request to OpenAI and parses the JSON response.
 - `validate_problem(problem_data: dict, mode="initial") -> dict`:  
@@ -94,8 +95,8 @@ Generates new math problems and step-by-step hints using Google's Gemini LLM, an
   Cleans and parses raw LLM output into valid JSON, handling code block markers and LaTeX escapes.
 - `call_gemini(messages)`:  
   Sends a prompt to Gemini and parses the response as JSON.
-- `generate_problem_shell(seed=None, subject=None, topic=None)`:  
-  Constructs a user prompt (optionally with a seed example, subject, and topic) and generates a new problem using Gemini.
+- `generate_ful_problem(seed=None, subject=None, topic=None)`:  
+  Constructs a user prompt (optionally with a seed example, subject, and topic) and generates a new datapoint using Gemini.
 
 **Interactions:**  
 
@@ -144,9 +145,9 @@ Coordinates the end-to-end pipeline for generating, validating, and collecting s
   - Loops to generate the desired number of problems.
   - Randomly selects subject/topic.
   - Optionally uses a search module to get a seed prompt.
-  - Calls `generate_problem_shell` and `generate_hints` from [`engineer/generate_prompt.py`](engineer/generate_prompt.py).
+  - Calls `generate_full_problem` from [`engineer/generate_prompt.py`](engineer/generate_prompt.py).
   - Validates problems using [`checker/validate_prompt.py`](checker/validate_prompt.py).
-  - Optionally benchmarks target models using [`orchestration/evaluate_target_model.py`](orchestration/evaluate_target_model.py).
+  - Benchmarks target model using [`orchestration/evaluate_target_model.py`](orchestration/evaluate_target_model.py).
   - Tracks accepted and discarded problems.
 
 **Interactions:**  
@@ -245,7 +246,7 @@ The synthetic math prompt generation tool is architected as a modular pipeline t
 - **Module:** [`system_messages.py`](system_messages.py)
 - **Role:** Provides reusable prompt templates for various LLM interactions (problem engineering, hint generation, answer checking). These templates are imported by both the engineering and checking modules to ensure consistent and effective communication with LLMs.
 
-#### 6. Evaluation Module (Optional)
+#### 6. Evaluation Module
 
 - **Module:** [`orchestration/evaluate_target_model.py`](orchestration/evaluate_target_model.py)
 - **Role:** Benchmarks how different LLMs (OpenAI, Gemini, DeepSeek) would answer the generated math problems. This supports comparative evaluation of model performance.
@@ -308,7 +309,7 @@ graph TD
         Orchestration(["Orchestration Layer\n([`orchestration/generate_batch.py`](orchestration/generate_batch.py:0), [`orchestration/save_results.py`](orchestration/save_results.py:0), [`orchestration/evaluate_target_model.py`](orchestration/evaluate_target_model.py:0))"])
         Engineering(["Engineering Module\n([`engineer/generate_prompt.py`](engineer/generate_prompt.py:0))"])
         Checking(["Checking Module\n([`checker/validate_prompt.py`](checker/validate_prompt.py:0))"])
-        Evaluation(["Evaluation Module (Optional)\n([`orchestration/evaluate_target_model.py`](orchestration/evaluate_target_model.py:0))"])
+        Evaluation(["Evaluation Module\n([`orchestration/evaluate_target_model.py`](orchestration/evaluate_target_model.py:0))"])
     end
 
     subgraph Shared_Resources["Shared Resources"]
@@ -338,7 +339,7 @@ graph TD
     LLM_OpenAI -- "Validation Result" --> Checking
     Checking -- "Returns Validation Status" --> Orchestration
 
-    Orchestration -- "3c. Sends for Benchmarking (Optional)" --> Evaluation
+    Orchestration -- "3c. Sends for Benchmarking" --> Evaluation
     Evaluation -- "Benchmarks Problem via LLM" --> LLM_OpenAI
     Evaluation -- "Benchmarks Problem via LLM" --> LLM_Gemini
     Evaluation -- "Benchmarks Problem via LLM" --> LLM_Others
