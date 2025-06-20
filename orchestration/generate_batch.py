@@ -1,4 +1,3 @@
-import yaml
 from pathlib import Path
 from random import choice
 from engineer.generate_prompt import generate_full_problem
@@ -6,6 +5,7 @@ from checker.validate_prompt import validate_problem
 from orchestration.evaluate_target_model import model_attempts_answer
 
 def load_config(config_path):
+    import yaml
     with open(config_path, "r") as f:
         return yaml.safe_load(f)
 
@@ -21,6 +21,9 @@ def run_generation_pipeline(config):
     approved_count = 0
     attempt_counter = 0
 
+    engineer_cfg = config.get("engineer_model", {})
+    checker_cfg = config.get("checker_model", {})
+
     while approved_count < target_total:
         attempt_counter += 1
         print(f"\n🔧 Attempt {attempt_counter} — Approved so far: {approved_count}/{target_total}")
@@ -30,15 +33,22 @@ def run_generation_pipeline(config):
         seed_prompt = get_seed_prompt(subject, topic) if get_seed_prompt else None
 
         try:
-            # 🔁 Generate full problem + hints in one LLM call
-            core = generate_full_problem(seed=seed_prompt, subject=subject, topic=topic)
+            core = generate_full_problem(
+                seed=seed_prompt,
+                subject=subject,
+                topic=topic,
+                provider=engineer_cfg.get("provider", "gemini"),
+                model_name=engineer_cfg.get("model_name", "gemini-2.5-pro")
+            )
             core.update({"subject": subject, "topic": topic})
 
-            # ✅ Validate problem and hints
-            result = validate_problem(core, mode="initial")
+            result = validate_problem(
+                core, mode="initial",
+                provider=checker_cfg.get("provider", "openai"),
+                model_name=checker_cfg.get("model_name", "o3-mini")
+            )
             corrected_hints = result.get("corrected_hints")
 
-            # Track whether checker modified the hints
             core["hints_were_corrected"] = bool(corrected_hints) and isinstance(corrected_hints, dict) and any(h.strip() for h in corrected_hints.values())
 
             if not result["valid"]:
@@ -46,27 +56,22 @@ def run_generation_pipeline(config):
                 discarded.append({**core, "rejection_reason": result.get("reason", "")})
                 continue
 
-            # 🛠 If checker provided corrections, replace hints
             if isinstance(corrected_hints, dict) and corrected_hints:
-                diffs = sum(
-                    1 for k in corrected_hints
-                    if k not in core["hints"] or core["hints"][k].strip() != corrected_hints[k].strip()
-                )
-                print(f"✍️ Checker revised {diffs} hint(s).")
+                print(f"✍️ Checker revised {len(corrected_hints)} hint(s).")
                 core["hints"] = corrected_hints
-
-            elif isinstance(corrected_hints, dict) and not corrected_hints:
+            elif isinstance(corrected_hints, dict):
                 print("⚠️ Checker returned empty corrected_hints — keeping original.")
-
             else:
                 print("✅ Keeping original hints from generator.")
 
-            # 🤖 Run the model's attempt at solving the problem
-            model_response = model_attempts_answer(core["problem"], config["target_model"])
-            core["target_model_answer"] = model_response
+            core["target_model_answer"] = model_attempts_answer(core["problem"], config["target_model"])
 
-            # 🧪 Check model's answer against ground truth
-            check = validate_problem(core, mode="equivalence_check")
+            check = validate_problem(
+                core, mode="equivalence_check",
+                provider=checker_cfg.get("provider", "openai"),
+                model_name=checker_cfg.get("model_name", "o3-mini")
+            )
+
             if not check.get("valid", False):
                 print("🧠 Target model failed — Accepted!")
                 accepted.append(core)
@@ -85,15 +90,3 @@ def run_generation_pipeline(config):
             })
 
     return accepted, discarded
-
-if __name__ == "__main__":
-    config_path = Path("config/settings.yaml")
-    config = load_config(config_path)
-
-    valid, rejected = run_generation_pipeline(config)
-
-    print(f"\n✅ {len(valid)} accepted | ❌ {len(rejected)} discarded")
-
-    from orchestration.save_results import save_prompts
-    save_path = Path(config["output_dir"]) / config.get("default_batch_id", "batch_01")
-    save_prompts(valid, rejected, save_path)

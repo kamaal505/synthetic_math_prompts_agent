@@ -3,18 +3,12 @@ import json
 import re
 from typing import List, Dict
 from dotenv import load_dotenv
-from openai import OpenAI
-
-try:
-    from system_messages import CHECKER_MESSAGE
-except ModuleNotFoundError:
-    import sys
-    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-    from system_messages import CHECKER_MESSAGE
 
 load_dotenv()
 OPENAI_KEY = os.getenv("OPENAI_KEY")
-client = OpenAI(api_key=OPENAI_KEY)
+GEMINI_KEY = os.getenv("GEMINI_KEY")
+
+from system_messages import CHECKER_MESSAGE
 
 def safe_json_parse(raw_text: str) -> dict:
     raw_text = raw_text.strip()
@@ -24,27 +18,28 @@ def safe_json_parse(raw_text: str) -> dict:
         raw_text = raw_text[3:]
     if raw_text.endswith("```"):
         raw_text = raw_text[:-3]
-
-    # Escape stray backslashes (e.g., from LaTeX)
     raw_text = re.sub(r'(?<!\\)\\(?![\\nt"\\/bfr])', r'\\\\', raw_text)
+    return json.loads(raw_text)
 
-    try:
-        return json.loads(raw_text)
-    except json.JSONDecodeError as e:
-        print("⚠️ Validator JSON decode error at char", e.pos)
-        print("Offending text:\n", raw_text[e.pos-50:e.pos+50])
-        raise ValueError(f"Validator output is not valid JSON: {e}")
-
-def call_openai(messages: List[Dict[str, str]]) -> dict:
+def call_openai(messages: List[Dict[str, str]], model_name="o3-mini") -> dict:
+    from openai import OpenAI
+    client = OpenAI(api_key=OPENAI_KEY)
     response = client.chat.completions.create(
-        model="o3-mini",
+        model=model_name,
         messages=messages,
         temperature=1.0
     )
-    content = response.choices[0].message.content.strip()
-    return safe_json_parse(content)
+    return safe_json_parse(response.choices[0].message.content.strip())
 
-def validate_problem(problem_data: dict, mode="initial") -> dict:
+def call_gemini(messages, model_name):
+    import google.generativeai as genai
+    genai.configure(api_key=GEMINI_KEY)
+    prompt = "\n".join([msg["content"] for msg in messages])
+    model = genai.GenerativeModel(model_name=model_name)
+    response = model.generate_content(prompt)
+    return safe_json_parse(response.text)
+
+def validate_problem(problem_data: dict, mode="initial", provider="openai", model_name="o3-mini") -> dict:
     if mode == "initial":
         user_prompt = {
             "problem": problem_data["problem"],
@@ -64,4 +59,10 @@ def validate_problem(problem_data: dict, mode="initial") -> dict:
         {"role": "system", "content": CHECKER_MESSAGE},
         {"role": "user", "content": json.dumps(user_prompt)}
     ]
-    return call_openai(messages)
+
+    if provider == "openai":
+        return call_openai(messages, model_name)
+    elif provider == "gemini":
+        return call_gemini(messages, model_name)
+    else:
+        raise ValueError(f"Unsupported checker provider: {provider}")

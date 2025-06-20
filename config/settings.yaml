@@ -1,7 +1,5 @@
-# Number of synthetic problems to generate and validate
 num_problems: 10
 
-# Specify subject areas and topics
 subjects:
   Complex Analysis:
     - Contour Integration
@@ -15,11 +13,16 @@ subjects:
 
 output_dir: "./results"
 default_batch_id: "batch_01"
-
-# If true, use internet search to augment prompt ideas
 use_search: false
+
+engineer_model:
+  provider: "gemini"
+  model_name: "gemini-2.5-pro"
+
+checker_model:
+  provider: "openai"
+  model_name: "o3-mini"
 
 target_model:
   provider: "openai"
   model_name: "o1"
-

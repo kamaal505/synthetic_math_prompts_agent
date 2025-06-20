@@ -2,56 +2,85 @@ import os
 import json
 import re
 from dotenv import load_dotenv
-import google.generativeai as genai
 
-try:
-    from system_messages import ENGINEER_MESSAGE
-except ModuleNotFoundError:
-    import sys
-    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-    from system_messages import ENGINEER_MESSAGE
+from system_messages import ENGINEER_MESSAGE
 
+# Load API keys
 load_dotenv()
-GOOGLE_API_KEY = os.getenv("GEMINI_KEY")
-genai.configure(api_key=GOOGLE_API_KEY)
-model = genai.GenerativeModel(model_name="gemini-2.5-pro-preview-06-05")
+OPENAI_KEY = os.getenv("OPENAI_KEY")
+GEMINI_KEY = os.getenv("GEMINI_KEY")
+
+# --- Utility ---
 
 def safe_json_parse(raw_text):
+    
     raw_text = raw_text.strip()
-    if raw_text.startswith("```json"):
-        raw_text = raw_text[7:]
-    elif raw_text.startswith("```"):
-        raw_text = raw_text[3:]
-    if raw_text.endswith("```"):
-        raw_text = raw_text[:-3]
 
-    # Fix LaTeX-style escapes
+    # Strip Markdown ```json or ``` markers
+    raw_text = re.sub(r"^```(?:json)?\s*", "", raw_text, flags=re.IGNORECASE)
+    raw_text = re.sub(r"\s*```$", "", raw_text)
+
+    # Trim to { ... } block if there's garbage around
+    json_start = raw_text.find('{')
+    json_end = raw_text.rfind('}') + 1
+    if json_start == -1 or json_end == -1:
+        raise ValueError("No JSON block detected.")
+    raw_text = raw_text[json_start:json_end]
+
+    # Fix invalid quote escaping (e.g., \" inside a value)
+    raw_text = raw_text.replace('\\"', '"')
+
+    # Escape LaTeX-style backslashes if not already escaped
     raw_text = re.sub(r'(?<!\\)\\(?![\\nt"\\/bfr])', r'\\\\', raw_text)
 
     try:
         return json.loads(raw_text)
     except json.JSONDecodeError as e:
-        print("⚠️ Gemini JSON decode error at char", e.pos)
-        print("Offending text:\n", raw_text[e.pos-50:e.pos+50])
-        raise ValueError(f"Gemini output is not valid JSON: {e}")
+        print("⚠️ JSON decode error at char", e.pos)
+        print("🔍 Offending context:\n", raw_text[e.pos-40:e.pos+40])
+        raise ValueError(f"Output is not valid JSON: {e}")
+    
+# --- LLM call wrappers ---
 
-def call_gemini(messages):
+def call_openai(system_prompt, user_prompt, model_name):
+    from openai import OpenAI
+    client = OpenAI(api_key=OPENAI_KEY)
+
+    response = client.chat.completions.create(
+        model=model_name,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        temperature=1.0
+    )
+    return safe_json_parse(response.choices[0].message.content.strip())
+
+def call_gemini(messages, model_name):
+    import google.generativeai as genai
+    genai.configure(api_key=GEMINI_KEY)
     prompt = "\n".join([msg["content"] for msg in messages])
+    model = genai.GenerativeModel(model_name=model_name)
     response = model.generate_content(prompt)
     return safe_json_parse(response.text)
 
-def generate_full_problem(seed=None, subject=None, topic=None):
-    user_prompt = "Generate a new math problem with hints."
-    if subject and topic:
-        user_prompt = f"Generate a math problem in {subject} under the topic '{topic}' with hints."
+# --- Main entrypoint ---
+
+def generate_full_problem(seed=None, subject=None, topic=None, provider="gemini", model_name="gemini-2.5-pro"):
+    user_prompt = f"Generate a math problem in {subject} under the topic '{topic}' with hints." if subject and topic else "Generate a new math problem with hints."
     if seed:
         user_prompt += f"\nUse this real-world example as inspiration:\n{seed}"
 
-    messages = [
-        {"role": "system", "content": ENGINEER_MESSAGE},
-        {"role": "user", "content": user_prompt}
-    ]
-    data = call_gemini(messages)
+    if provider == "openai":
+        data = call_openai(ENGINEER_MESSAGE, user_prompt, model_name)
+    elif provider == "gemini":
+        messages = [
+            {"role": "system", "content": ENGINEER_MESSAGE},
+            {"role": "user", "content": user_prompt}
+        ]
+        data = call_gemini(messages, model_name)
+    else:
+        raise ValueError(f"Unsupported engineer provider: {provider}")
 
     if not isinstance(data.get("hints"), dict) or len(data["hints"]) < 3:
         raise ValueError("Invalid or too few hints returned.")
