@@ -1,9 +1,9 @@
 import argparse
-import yaml
 from pathlib import Path
-from orchestration.generate_batch import run_generation_pipeline, load_config
-from orchestration.save_results import save_prompts
-
+import yaml
+from core.orchestration.generate_batch import run_generation_pipeline
+from core.orchestration.save_results import save_prompts
+from utils.config_loader import load_config   
 def main():
     parser = argparse.ArgumentParser(description="Synthetic Prompt Generator CLI")
     parser.add_argument("--config", type=str, default="config/settings.yaml", help="Path to config YAML file")

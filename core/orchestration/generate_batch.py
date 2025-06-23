@@ -1,13 +1,8 @@
 from pathlib import Path
 from random import choice
-from engineer.generate_prompt import generate_full_problem
-from checker.validate_prompt import validate_problem
-from orchestration.evaluate_target_model import model_attempts_answer
-
-def load_config(config_path):
-    import yaml
-    with open(config_path, "r") as f:
-        return yaml.safe_load(f)
+from core.engineer.generate_prompt import generate_full_problem
+from core.checker.validate_prompt import validate_problem
+from core.orchestration.evaluate_target_model import model_attempts_answer
 
 def run_generation_pipeline(config):
     accepted = []
@@ -28,8 +23,14 @@ def run_generation_pipeline(config):
         attempt_counter += 1
         print(f"\n🔧 Attempt {attempt_counter} — Approved so far: {approved_count}/{target_total}")
 
-        subject = choice(list(config["subjects"].keys()))
-        topic = choice(config["subjects"][subject])
+        taxonomy = config.get("taxonomy")
+        if taxonomy:
+            subject = choice(list(taxonomy.keys()))
+            topic = choice(taxonomy[subject])
+        else:
+            subject = config.get("subject")
+            topic = config.get("topic")
+
         seed_prompt = get_seed_prompt(subject, topic) if get_seed_prompt else None
 
         try:

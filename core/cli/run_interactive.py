@@ -1,10 +1,8 @@
-import sys
-import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import json
 from pathlib import Path
-from orchestration.generate_batch import run_generation_pipeline, load_config
-from orchestration.save_results import save_prompts
+from core.orchestration.generate_batch import run_generation_pipeline
+from utils.config_loader import load_config
+from utils.save_results import save_prompts
 
 def get_input(prompt, default=None):
     val = input(f"{prompt} [{default}]: ") if default else input(f"{prompt}: ")

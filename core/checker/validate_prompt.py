@@ -8,7 +8,7 @@ load_dotenv()
 OPENAI_KEY = os.getenv("OPENAI_KEY")
 GEMINI_KEY = os.getenv("GEMINI_KEY")
 
-from system_messages import CHECKER_MESSAGE
+from utils.system_messages import CHECKER_MESSAGE
 
 def safe_json_parse(raw_text: str) -> dict:
     raw_text = raw_text.strip()
