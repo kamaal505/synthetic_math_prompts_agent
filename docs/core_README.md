@@ -127,6 +127,14 @@ The **Target Model** (e.g. OpenAI o1, GPT-4o, DeepSeek R1) attempts to solve the
 
 ---
 
+Absolutely — here are the **updated README sections** for both the **core logic** and the **FastAPI backend**, reflecting your decision to:
+
+* Require `taxonomy` only in the FastAPI schema
+* Keep `subject`/`topic` in CLI for testing
+* Avoid editing orchestration fallback logic
+
+---
+
 ## 📦 4. Batch Generation
 
 ### Purpose
@@ -137,24 +145,62 @@ Runs the full generation pipeline in a loop until the target number of **validat
 
 #### ➤ `run_generation_pipeline(config)`
 
-**Main steps per attempt**:
+**Supported input options:**
 
-1. Sample a `subject` and `topic` (from config or `taxonomy`)
-2. Optionally pull `seed_prompt` (e.g. from search)
-3. **Engineer** generates problem, answer, hints
-4. **Checker** validates (initial phase)
-5. If valid, the **Target Model** attempts to solve
-6. **Checker** judges the model’s answer
-7. Accepted if:
+* ✅ `taxonomy` (preferred): randomly samples a subject and topic
+* ✅ `subject` and `topic`: fixed override, used for CLI/debugging
+
+> If both are provided, `taxonomy` takes precedence.
+
+**Main steps per attempt:**
+
+1. Sample a subject and topic (randomly or from fixed values)
+2. Optionally pull `seed_prompt` (if search is enabled)
+3. Generate problem, answer, and hints via the **Engineer**
+4. Validate with the **Checker**
+5. Challenge with the **Target Model**
+6. Accept only if:
 
    * Problem is valid ✅
-   * Target model failed ❌
+   * Model fails to solve it correctly ❌
 
-**Returns**:
+**Returns:**
 
-* `accepted`: list of valid, model-breaking prompts
+* `accepted`: list of validated, model-breaking prompts
 * `discarded`: list of invalid or solved prompts
 
+---
+
+## 🧪 CLI Testing Modes
+
+* CLI mode supports `subject` and `topic` via `config/settings.yaml`
+* This is useful for testing specific topics without requiring a taxonomy structure
+* FastAPI backend does not accept `subject` or `topic`; it uses taxonomy only
+
+---
+
+## ⚙️ Example Config (YAML)
+
+```yaml
+num_problems: 5
+output_dir: "./results"
+default_batch_id: "test_batch"
+
+subject: "Algebra"
+topic: "Quadratic Equations"
+
+engineer_model:
+  provider: "gemini"
+  model_name: "gemini-2.5-pro"
+
+checker_model:
+  provider: "openai"
+  model_name: "o3-mini"
+
+target_model:
+  provider: "openai"
+  model_name: "o1"
+```
 ---
 
 ## 🧰 CLI Interfaces

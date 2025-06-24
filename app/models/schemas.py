@@ -22,9 +22,7 @@ class GenerationRequest(BaseModel):
     engineer_model: ModelConfig
     checker_model: ModelConfig
     target_model: ModelConfig
-    taxonomy: Optional[Dict[str, List[str]]] = None  # subject -> list of topics
-    subject: Optional[str] = None
-    topic: Optional[str] = None
+    taxonomy: Dict[str, List[str]]
 
     class Config:
         schema_extra = {
@@ -43,18 +41,11 @@ class GenerationRequest(BaseModel):
                     "model_name": "o1"
                 },
                 "taxonomy": {
-                    "Algebra (High School)": [
-                        "Linear Equations and Inequalities",
-                        "Quadratic Equations and Functions"
-                    ],
-                    "Complex Analysis": [
-                        "Contour Integration",
-                        "Analytic Continuation"
-                    ]
+                    "Algebra": ["Linear Equations", "Quadratic Functions"],
+                    "Complex Analysis": ["Contour Integration"]
                 }
             }
         }
-
 
 class GenerationResponse(BaseModel):
     valid_prompts: List[Prompt]

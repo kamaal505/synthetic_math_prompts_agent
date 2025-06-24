@@ -7,8 +7,6 @@ def run_pipeline(request: GenerationRequest):
         "engineer_model": request.engineer_model.dict(),
         "checker_model": request.checker_model.dict(),
         "target_model": request.target_model.dict(),
-        "subject": request.subject,
-        "topic": request.topic,
         "taxonomy": request.taxonomy
     }
     return run_pipeline_from_config(config)

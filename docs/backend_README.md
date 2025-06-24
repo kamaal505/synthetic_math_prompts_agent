@@ -74,18 +74,17 @@ Generates a batch of synthetic prompts and returns both accepted and discarded e
   }
 }
 ```
+---
 
 ### 🧠 Field Descriptions
 
-| Field            | Type                     | Required | Description                                      |
-| ---------------- | ------------------------ | -------- | ------------------------------------------------ |
-| `num_problems`   | int                      | ✅        | How many prompts to generate                     |
-| `engineer_model` | `{provider, model_name}` | ✅        | LLM to generate problems                         |
-| `checker_model`  | `{provider, model_name}` | ✅        | LLM to validate outputs and answers              |
-| `target_model`   | `{provider, model_name}` | ✅        | LLM to challenge with the generated problem      |
-| `subject`        | str                      | ❌        | Specific subject (used if `taxonomy` is omitted) |
-| `topic`          | str                      | ❌        | Specific topic (same as above)                   |
-| `taxonomy`       | dict\[str, list\[str]]   | ❌        | Mapping of subjects to topic lists               |
+| Field            | Type                     | Required | Description                                 |
+| ---------------- | ------------------------ | -------- | ------------------------------------------- |
+| `num_problems`   | int                      | ✅        | How many prompts to generate                |
+| `engineer_model` | `{provider, model_name}` | ✅        | LLM to generate problems                    |
+| `checker_model`  | `{provider, model_name}` | ✅        | LLM to validate outputs and answers         |
+| `target_model`   | `{provider, model_name}` | ✅        | LLM to challenge with the generated problem |
+| `taxonomy`       | dict\[str, list\[str]]   | ✅        | Mapping of subjects to topic lists          |
 
 ---
 
@@ -186,7 +185,6 @@ curl -X POST http://localhost:8000/generate \
 
 ## 🧼 Notes
 
-* The backend is stateless — no database is used (yet).
 * You can swap out `model_name` and `provider` to test other LLMs.
 * Logs and runtime behavior will reflect the output from the core pipeline (e.g. approvals, discards, model failures).
 
