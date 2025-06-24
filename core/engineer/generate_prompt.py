@@ -3,7 +3,7 @@ import json
 import re
 from dotenv import load_dotenv
 
-from system_messages import ENGINEER_MESSAGE
+from utils.system_messages import ENGINEER_MESSAGE
 
 # Load API keys
 load_dotenv()

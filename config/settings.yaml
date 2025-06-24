@@ -1,6 +1,6 @@
 num_problems: 10
 
-subjects:
+taxonomy:
   Complex Analysis:
     - Contour Integration
     - Analytic Functions
