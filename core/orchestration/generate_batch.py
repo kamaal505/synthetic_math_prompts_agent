@@ -1,8 +1,7 @@
 from pathlib import Path
 from random import choice
-from core.engineer.generate_prompt import generate_full_problem
-from core.checker.validate_prompt import validate_problem
-from core.orchestration.evaluate_target_model import model_attempts_answer
+from core.llm.llm_dispatch import call_engineer, call_checker, call_target_model
+from utils.validation import assert_valid_model_config
 
 def run_generation_pipeline(config):
     accepted = []
@@ -18,6 +17,12 @@ def run_generation_pipeline(config):
 
     engineer_cfg = config.get("engineer_model", {})
     checker_cfg = config.get("checker_model", {})
+    target_cfg = config.get("target_model", {})
+
+    # Validate configs before starting
+    assert_valid_model_config("engineer", engineer_cfg)
+    assert_valid_model_config("checker", checker_cfg)
+    assert_valid_model_config("target", target_cfg)
 
     while approved_count < target_total:
         attempt_counter += 1
@@ -34,23 +39,19 @@ def run_generation_pipeline(config):
         seed_prompt = get_seed_prompt(subject, topic) if get_seed_prompt else None
 
         try:
-            core = generate_full_problem(
-                seed=seed_prompt,
-                subject=subject,
-                topic=topic,
-                provider=engineer_cfg.get("provider", "gemini"),
-                model_name=engineer_cfg.get("model_name", "gemini-2.5-pro")
-            )
+            # Step 1: Engineer generates full problem
+            core = call_engineer(subject, topic, seed_prompt, engineer_cfg)
             core.update({"subject": subject, "topic": topic})
 
-            result = validate_problem(
-                core, mode="initial",
-                provider=checker_cfg.get("provider", "openai"),
-                model_name=checker_cfg.get("model_name", "o3-mini")
-            )
+            # Step 2: Checker validates problem + hints
+            result = call_checker(core, checker_cfg, mode="initial")
             corrected_hints = result.get("corrected_hints")
 
-            core["hints_were_corrected"] = bool(corrected_hints) and isinstance(corrected_hints, dict) and any(h.strip() for h in corrected_hints.values())
+            core["hints_were_corrected"] = (
+                bool(corrected_hints)
+                and isinstance(corrected_hints, dict)
+                and any(h.strip() for h in corrected_hints.values())
+            )
 
             if not result["valid"]:
                 print(f"❌ Rejected: {result.get('reason', '')}")
@@ -65,13 +66,11 @@ def run_generation_pipeline(config):
             else:
                 print("✅ Keeping original hints from generator.")
 
-            core["target_model_answer"] = model_attempts_answer(core["problem"], config["target_model"])
+            # Step 3: Target model attempts the problem
+            core["target_model_answer"] = call_target_model(core["problem"], target_cfg)
 
-            check = validate_problem(
-                core, mode="equivalence_check",
-                provider=checker_cfg.get("provider", "openai"),
-                model_name=checker_cfg.get("model_name", "o3-mini")
-            )
+            # Step 4: Checker evaluates model's answer for correctness
+            check = call_checker(core, checker_cfg, mode="equivalence_check")
 
             if not check.get("valid", False):
                 print("🧠 Target model failed — Accepted!")
