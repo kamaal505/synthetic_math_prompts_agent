@@ -1,6 +1,4 @@
 import os
-import re
-import json
 from dotenv import load_dotenv
 from utils.system_messages import ENGINEER_MESSAGE
 from utils.json_utils import safe_json_parse
@@ -11,20 +9,44 @@ GEMINI_KEY = os.getenv("GEMINI_KEY")
 
 
 def call_openai(system_prompt, user_prompt, model_name):
+    """
+    Calls OpenAI model with response-style API and returns parsed output + token usage.
+    """
     full_prompt = f"{system_prompt.strip()}\n\n{user_prompt.strip()}"
-    return safe_json_parse(call_openai_model("engineer", full_prompt, model_name, effort="medium"))
+    response = call_openai_model("engineer", full_prompt, model_name, effort="medium")
+
+    if not response or "output" not in response:
+        raise ValueError(f"OpenAI model '{model_name}' returned no usable output.")
+
+    parsed = safe_json_parse(response["output"])
+    parsed.update({
+        "tokens_prompt": response.get("tokens_prompt", 0),
+        "tokens_completion": response.get("tokens_completion", 0)
+    })
+    return parsed
 
 
 def call_gemini(messages, model_name):
+    """
+    Calls Gemini model and returns parsed output + zero token counts (not supported yet).
+    """
     import google.generativeai as genai
     genai.configure(api_key=GEMINI_KEY)
     prompt = "\n".join([msg["content"] for msg in messages])
     model = genai.GenerativeModel(model_name=model_name)
     response = model.generate_content(prompt)
-    return safe_json_parse(response.text)
+    parsed = safe_json_parse(response.text)
+    parsed.update({
+        "tokens_prompt": 0,
+        "tokens_completion": 0
+    })
+    return parsed
 
 
 def generate_full_problem(seed, subject, topic, provider, model_name):
+    """
+    Generates a math problem with hints and returns full data + token usage.
+    """
     user_prompt = f"Generate a math problem in {subject} under the topic '{topic}' with hints."
     if seed:
         user_prompt += f"\nUse this real-world example as inspiration:\n{seed}"
@@ -51,5 +73,7 @@ def generate_full_problem(seed, subject, topic, provider, model_name):
         "topic": data["topic"],
         "problem": data["problem"],
         "answer": data["answer"],
-        "hints": data["hints"]
+        "hints": data["hints"],
+        "tokens_prompt": data.get("tokens_prompt", 0),
+        "tokens_completion": data.get("tokens_completion", 0)
     }

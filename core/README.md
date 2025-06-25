@@ -15,90 +15,88 @@ Only problems that are both **valid** and **not solved by the target model** are
 ```
 core/
 ├── checker/
-│   └── validate_prompt.py           # Validates problem and target model answer
+│   └── validate_prompt.py         # Validates problem and target model answer
 ├── engineer/
-│   └── generate_prompt.py           # Generates problems, answers, and hints
+│   └── generate_prompt.py         # Generates problems, answers, and hints
+├── llm/
+│   ├── llm_dispatch.py            # Role-based dispatcher for engineer, checker, target
+│   └── openai_utils.py            # Token-aware OpenAI wrapper (chat & responses APIs)
 ├── orchestration/
-│   ├── generate_batch.py            # Main generation loop
-│   └── evaluate_target_model.py     # Sends problems to target model
+│   ├── generate_batch.py          # Main generation loop with cost tracking
+│   └── evaluate_target_model.py   # Sends problems to the target model
 ├── cli/
-│   ├── interface.py                 # CLI interface with override support
-│   └── run_interactive.py           # Interactive CLI for manual runs
-├── runner.py                        # Entry point for backend / service use
+│   ├── interface.py               # CLI for config-driven batch generation
+│   └── run_interactive.py         # Interactive CLI for experimentation
+├── runner.py                      # Entrypoint for backend or service integration
 ```
 
 Dependencies:
 
 ```
 utils/
-├── config_loader.py                 # Loads YAML config
-├── save_results.py                  # Saves valid and discarded problems
-├── system_messages.py               # Holds prompt templates
+├── config_loader.py               # Loads YAML config files
+├── save_results.py                # Saves valid/discarded prompts and cost logs
+├── system_messages.py             # Defines standardized system prompts
+├── costs.py                       # Tracks tokens + computes cost by model
+├── json_utils.py                  # Parses loosely structured JSON outputs
+├── validation.py                  # Validates model config structure
 ```
 
 ---
 
 ## 📐 1. Engineering
 
-### Purpose
-
-The **Engineer** agent is responsible for generating:
+The **Engineer** LLM generates:
 
 * A math **problem**
 * Its correct **answer**
-* A set of **step-by-step hints** (dictionary of strings)
+* A dictionary of **hints**
 
-### Key Module: `engineer/generate_prompt.py`
+### 🔧 `engineer/generate_prompt.py`
 
-#### ➤ `generate_full_problem(seed=None, subject=None, topic=None, ...)`
+```python
+generate_full_problem(seed, subject, topic, provider, model_name) → dict
+```
 
-Creates a complete synthetic math prompt package.
+* Constructs prompts using `ENGINEER_MESSAGE`
+* Supports OpenAI and Gemini
+* Parses LLM output using `safe_json_parse`
+* Returns:
 
-* Pulls optional `seed` if real-world prompt data is available
-* Builds user/system prompts using the `ENGINEER_MESSAGE`
-* Calls:
+  * `problem`, `answer`, `hints`
+  * `tokens_prompt`, `tokens_completion`
 
-  * `call_gemini()` or `call_openai()` depending on config
-* Parses model output using `safe_json_parse()`
+Raises error if:
 
-**Validation Criteria**:
-
-* `hints` must be a `dict` with at least 3 entries
-* Raises an error if invalid or underspecified
+* Hints are not a dictionary
+* Fewer than 3 hints are returned
 
 ---
 
 ## ✅ 2. Validation
 
-### Purpose
+The **Checker** validates correctness and optionally compares the model's answer.
 
-The **Checker** agent ensures the problem is:
+### 🔧 `checker/validate_prompt.py`
 
-* Mathematically sound
-* Answer and hints are logically consistent
-* Target model response is evaluated for correctness
-
-### Key Module: `checker/validate_prompt.py`
-
-#### ➤ `validate_problem(problem_data: dict, mode: str, provider: str, model_name: str)`
+```python
+validate_problem(problem_data, mode, provider, model_name) → dict
+```
 
 Modes:
 
-* `"initial"`: Validates the generated problem/answer/hints
-* `"equivalence_check"`: Compares the target model's answer to the ground truth
+* `"initial"`: Validates generated problem/answer/hints
+* `"equivalence_check"`: Compares model answer with correct answer
 
-Internally uses:
+Returns:
 
-* `call_openai()` or `call_gemini()`
-* `safe_json_parse()` to sanitize JSON-like LLM output
-
-**Returns**:
-
-```python
+```json
 {
-  "valid": bool,
-  "reason": "optional string if rejected",
-  "corrected_hints": dict | None
+  "valid": true,
+  "reason": "...",
+  "corrected_hints": { "0": "...", ... },
+  "tokens_prompt": 123,
+  "tokens_completion": 456
 }
 ```
 
@@ -106,277 +104,133 @@ Internally uses:
 
 ## 🤖 3. Evaluation
 
-### Purpose
+The **Target Model** attempts to solve the problem. If it fails, the problem is accepted.
 
-The **Target Model** (e.g. OpenAI o1, GPT-4o, DeepSeek R1) attempts to solve the generated problem. If it fails to match the correct answer (semantically), the problem is considered a **break case**.
+### 🔧 `orchestration/evaluate_target_model.py`
 
-### Key Module: `orchestration/evaluate_target_model.py`
+```python
+model_attempts_answer(problem: str, model_config: dict) → dict
+```
 
-#### ➤ `model_attempts_answer(problem: str, model_config: dict)`
+* Uses a strict "final answer only" prompt
+* Supports OpenAI, Gemini, and DeepSeek
+* Returns:
 
-* Sends only the problem with a strict prompt:
-
-  > “Only provide the final answer. No explanation.”
-* Supports providers:
-
-  * `openai` (via OpenAI SDK)
-  * `deepseek` (via Fireworks API)
-  * `gemini` (via `google.generativeai`)
-
-**Returns**: final answer string (stripped)
+  * `output`: model's answer
+  * `tokens_prompt`, `tokens_completion`
 
 ---
 
-Absolutely — here are the **updated README sections** for both the **core logic** and the **FastAPI backend**, reflecting your decision to:
+## 🔌 3.5 Role Dispatcher
 
-* Require `taxonomy` only in the FastAPI schema
-* Keep `subject`/`topic` in CLI for testing
-* Avoid editing orchestration fallback logic
+This module centralizes how each model role is routed to the appropriate logic.
+
+### 🔧 `llm/llm_dispatch.py`
+
+```python
+call_engineer(subject, topic, seed_prompt, config) → dict
+call_checker(core_problem, config, mode="initial") → dict
+call_target_model(problem_text, config) → dict
+```
+
+Each function delegates to:
+
+* Engineer → `generate_full_problem(...)`
+* Checker → `validate_problem(...)`
+* Target → `model_attempts_answer(...)`
+
+Each call returns both output **and token usage**.
+
+This dispatcher:
+
+* Keeps `generate_batch.py` clean and role-agnostic
+* Ensures consistent interface and logging across all roles
 
 ---
 
 ## 📦 4. Batch Generation
 
-### Purpose
+Loops through the entire prompt generation pipeline until enough valid, model-breaking prompts are accepted.
 
-Runs the full generation pipeline in a loop until the target number of **validated + model-breaking** problems is reached.
-
-### Key Module: `orchestration/generate_batch.py`
-
-#### ➤ `run_generation_pipeline(config)`
-
-**Supported input options:**
-
-* ✅ `taxonomy` (preferred): randomly samples a subject and topic
-* ✅ `subject` and `topic`: fixed override, used for CLI/debugging
-
-> If both are provided, `taxonomy` takes precedence.
-
-**Main steps per attempt:**
-
-1. Sample a subject and topic (randomly or from fixed values)
-2. Optionally pull `seed_prompt` (if search is enabled)
-3. Generate problem, answer, and hints via the **Engineer**
-4. Validate with the **Checker**
-5. Challenge with the **Target Model**
-6. Accept only if:
-
-   * Problem is valid ✅
-   * Model fails to solve it correctly ❌
-
-**Returns:**
-
-* `accepted`: list of validated, model-breaking prompts
-* `discarded`: list of invalid or solved prompts
-
----
-
-## 🧪 CLI Testing Modes
-
-* CLI mode supports `subject` and `topic` via `config/settings.yaml`
-* This is useful for testing specific topics without requiring a taxonomy structure
-* FastAPI backend does not accept `subject` or `topic`; it uses taxonomy only
-
----
-
-## ⚙️ Example Config (YAML)
-
-```yaml
-num_problems: 5
-output_dir: "./results"
-default_batch_id: "test_batch"
-
-subject: "Algebra"
-topic: "Quadratic Equations"
-
-engineer_model:
-  provider: "gemini"
-  model_name: "gemini-2.5-pro"
-
-checker_model:
-  provider: "openai"
-  model_name: "o3-mini"
-
-target_model:
-  provider: "openai"
-  model_name: "o1"
-```
----
-
-## 🧰 CLI Interfaces
-
-### 📄 `cli/interface.py`
-
-This command-line entry point allows users to run the pipeline non-interactively with full YAML override support.
-
----
-
-#### 🛠 CLI Override Examples
-
-**1. ✅ Run with all defaults (batch ID, model, number of problems)**
-
-```bash
-python -m cli.interface --batch-id batch_01
-```
-
-**2. 🗃 Override the batch ID**
-
-```bash
-python -m cli.interface --batch-id my_custom_batch
-```
-
-**3. 🔢 Override the number of problems**
-
-```bash
-python -m cli.interface --batch-id test_batch --num-problems 3
-```
-
-**4. 🤖 Use DeepSeek R1 via Fireworks**
-
-```bash
-python -m cli.interface \
-  --batch-id deepseek_batch \
-  --target-provider deepseek \
-  --target-model accounts/fireworks/models/deepseek-r1
-```
-
-**5. 🧠 Use an OpenAI model other than `o1` (e.g. `gpt-4`)**
-
-```bash
-python -m cli.interface \
-  --batch-id gpt4_batch \
-  --target-provider openai \
-  --target-model gpt-4o
-```
-
-**6. 🔮 Use a Gemini model (e.g. `gemini-1.5-pro`)**
-
-```bash
-python -m cli.interface \
-  --batch-id gemini_batch \
-  --target-provider gemini \
-  --target-model gemini-1.5-pro
-```
-
----
-
-### 🖥️ `cli/run_interactive.py`
-
-This script is a fully interactive CLI for real-time config selection and override. It's ideal for debugging, experimentation, or one-off generations.
-
----
-
-#### 🧰 Features
-
-* Loads the default config from `config/settings.yaml`
-* Prompts the user for:
-
-  * Batch ID
-  * Number of problems
-  * Engineer, Checker, and Target model (provider + model name)
-* Skipped entries fall back to default config values
-* Displays which values were overridden
-* Runs the full pipeline and prints live status
-* Saves results to the batch output folder
-
----
-
-#### 🔁 User Flow
-
-1. Print a banner and load config
-2. Prompt user for input values (with prefilled defaults)
-3. Build config dynamically
-4. Run pipeline
-5. Save and print summary
-
----
-
-#### 🧪 Example Interaction
-
-```bash
-python cli/run_interactive.py
-```
-
-```text
-🧠 Synthetic Prompt Generator (Interactive Mode)
-
-Enter batch ID [batch_01]:
-Number of problems [10]: 3
-Engineer provider [gemini]: openai
-Engineer model name [gpt-4]: gpt-4
-...
-
-🚀 Running generation pipeline...
-
-✅ Problem generated with 3 hints.
-🧠 Target model failed — Accepted!
-
-✅ 1 accepted | ❌ 2 discarded
-🎉 Done.
-```
-
----
-
-## 🔁 Runner
-
-### 📄 `runner.py`
-
-A lightweight wrapper used by the FastAPI backend or other Python services.
-
-#### ➤ `run_pipeline_from_config(config: dict) → dict`
-
-Returns a dictionary of results:
+### 🔧 `orchestration/generate_batch.py`
 
 ```python
-{
-  "valid_prompts": [...],
-  "discarded_prompts": [...],
-  "metadata": {
-    "total_attempted": int,
-    "total_accepted": int
-  }
-}
+run_generation_pipeline(config: dict) → (accepted, discarded, cost_tracker)
 ```
+
+Process:
+
+1. Sample subject/topic from taxonomy (or override)
+2. Optionally use a seed prompt (if web search is enabled)
+3. Engineer generates a problem
+4. Checker validates it
+5. Target model attempts to solve it
+6. Checker performs equivalence check
+
+Tracks:
+
+* Accepted prompts
+* Discarded prompts
+* Per-model token usage and cost
 
 ---
 
-## 📂 Output Structure
+## 🧮 Cost Tracking
 
-After running the pipeline, files are saved to `config["output_dir"]/batch_id/`:
+Token metadata is extracted and aggregated:
 
-```
-results/
-└── batch_01/
-    ├── valid.json        # Accepted prompts
-    └── discarded.json    # Rejected prompts (invalid or solved)
-```
+* ✅ OpenAI chat and responses APIs
+* ✅ Compatible with cost tracking for Gemini and DeepSeek
+* ✅ CostTracker stores token and price data
 
-Each entry contains:
+Saved as `costs.json` in the batch output directory.
 
-* `subject`, `topic`, `problem`, `answer`
-* `hints` (dict)
-* `target_model_answer`
-* `rejection_reason` (if applicable)
+---
+
+## 🧪 CLI Support
+
+CLI entry points live in the `cli/` folder.
+
+* `interface.py`: accepts config or override args
+* `run_interactive.py`: prompts user for config values
+
+All results are saved in `output_dir/batch_id/`.
 
 ---
 
 ## ✅ Acceptance Criteria
 
-A problem is accepted into the dataset only if:
+A problem is accepted **only if**:
 
-* ✅ It passes **initial validation** by the Checker
-* ❌ The **Target model fails** to solve it correctly (semantic mismatch)
+* ✅ It passes the initial validation (well-formed + pedagogically sound)
+* ❌ It breaks the target model (i.e., model's answer is incorrect)
 
 ---
 
-## 🔐 API Keys Required
+## 📂 Output Files
 
-Store your keys in a `.env` file at the root:
+Saved to `results/<batch_id>/`:
+
+```
+results/
+└── batch_01/
+    ├── valid.json         # Accepted, validated, and LLM-breaking
+    ├── discarded.json     # Invalid or solved
+    └── costs.json         # Token and cost breakdown
+```
+
+---
+
+## 🔐 API Keys
+
+Add a `.env` file in the root:
 
 ```env
-OPENAI_KEY=your-openai-api-key
-GEMINI_KEY=your-gemini-api-key
-DEEPSEEK_KEY=your-fireworks-api-key
+OPENAI_KEY=...
+GEMINI_KEY=...
+DEEPSEEK_KEY=...
 ```
+
+These are accessed automatically by the relevant provider wrappers.
 
 ---

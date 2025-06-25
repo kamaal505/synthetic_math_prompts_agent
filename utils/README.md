@@ -1,6 +1,6 @@
 # 🛠️ Utilities – Synthetic Prompt Agent
 
-The `utils/` module provides essential supporting functions for the synthetic prompt generation system. These utilities help with configuration loading, result saving, and standardized system prompts for LLM calls.
+The `utils/` module supports configuration loading, result saving, cost tracking, validation, and prompt formatting.
 
 ---
 
@@ -8,113 +8,109 @@ The `utils/` module provides essential supporting functions for the synthetic pr
 
 ```
 utils/
-├── config_loader.py      # Loads YAML config files
-├── save_results.py       # Saves accepted/rejected prompts as JSON
-└── system_messages.py    # Holds system prompts for LLMs
+├── config_loader.py     # Loads YAML config files
+├── save_results.py      # Saves prompts + costs
+├── system_messages.py   # Shared prompt templates
+├── costs.py             # Token accounting + price calculation
+├── json_utils.py        # Safe parsing of LLM JSON-ish output
+├── validation.py        # Validates model config schema
 ```
 
 ---
 
 ## 🔧 1. `config_loader.py`
 
-### ➤ `load_config(config_path: Path) → dict`
-
-Reads a `.yaml` configuration file and returns a dictionary.
-
-**Usage Example:**
-
 ```python
-from utils.config_loader import load_config
-from pathlib import Path
-
-config = load_config(Path("config/settings.yaml"))
-print(config["num_problems"])
+load_config(path: Path) → dict
 ```
 
-This is used by both CLI and interactive scripts to initialize pipeline parameters.
+Loads and parses a `.yaml` config into a Python dictionary.
 
 ---
 
 ## 💾 2. `save_results.py`
 
-### ➤ `save_prompts(valid_list, discarded_list, save_path)`
+```python
+save_prompts(valid_list, discarded_list, save_path, cost_tracker=None)
+```
 
-Writes accepted and rejected problems to a batch-specific folder as JSON files.
+* Saves:
 
-* Creates the output directory if it doesn't exist.
-* Preserves full fidelity and formatting (`ensure_ascii=False`).
-* Logs the save location and prompt counts.
+  * `valid.json`
+  * `discarded.json`
+  * `costs.json` (if `cost_tracker` is provided)
+* Pretty-prints JSON with full fidelity
 
-**Files written:**
+---
 
-* `valid.json` – contains prompts that were validated and broke the target model
-* `discarded.json` – contains invalid prompts or ones solved by the model
+## 💰 3. `costs.py`
 
-**Example Usage:**
+### ➤ `CostTracker` class
+
+Tracks token usage and cost per model (OpenAI, Gemini, DeepSeek):
 
 ```python
-from utils.save_results import save_prompts
+tracker.log(model_config, tokens_prompt, tokens_completion)
+tracker.get_total_cost() → float
+tracker.get_breakdown() → dict
+tracker.as_dict(run_id) → full JSON-ready cost summary
+```
 
-save_prompts(valid, discarded, "results/batch_01")
+Pricing is model-specific (e.g., GPT-4o vs o3-mini) and defined via:
+
+```python
+MODEL_PRICING: Dict[(provider, model_name), (input_cost, output_cost)]
 ```
 
 ---
 
-## 🧠 3. `system_messages.py`
+## 🧠 4. `system_messages.py`
 
-Contains standardized system messages used to prime the LLMs in different roles. These ensure consistent behavior across providers (OpenAI, Gemini, etc.).
+Defines reusable LLM system prompts:
+
+* `ENGINEER_MESSAGE`: guides generation of problem + answer + hints
+* `CHECKER_MESSAGE`: validates problem and assesses model answers
+
+Each prompt is tuned for strict formatting, no markdown/LaTeX, and JSON compliance.
 
 ---
 
-### ➤ `ENGINEER_MESSAGE`
-
-Sets expectations for the LLM tasked with generating synthetic math problems.
-
-**Highlights:**
-
-* Problems must be self-contained, precise, and difficult
-* Must return a valid answer and a dictionary of hints
-* No markdown or LaTeX wrappers allowed
-* Strong emphasis on correctness and JSON format
-
-Example usage:
+## 🧼 5. `json_utils.py`
 
 ```python
-from utils.system_messages import ENGINEER_MESSAGE
+safe_json_parse(text: str) → dict
 ```
 
----
-
-### ➤ `CHECKER_MESSAGE`
-
-Used in validation and equivalence checking modes. It instructs the LLM on how to:
-
-* Validate a math problem's answer and hints
-* Provide corrections if needed
-* Determine if a model's answer is mathematically equivalent
-
-**Highlights:**
-
-* Validates both logic and final answers
-* Requires JSON output with:
-
-  ```json
-  {
-    "valid": true,
-    "reason": "...",
-    "corrected_hints": { "0": "...", "1": "..." }
-  }
-  ```
-* Must avoid markdown, LaTeX, or unnecessary formatting
+* Parses malformed JSON-like strings (e.g. from LLMs)
+* Falls back to correction strategies
+* Raises a `ValueError` if unfixable
 
 ---
 
-## 💡 Summary
+## 🔍 6. `validation.py`
 
-| File                 | Purpose                                       |
-| -------------------- | --------------------------------------------- |
-| `config_loader.py`   | Load structured config for the pipeline       |
-| `save_results.py`    | Save accepted and rejected prompts to disk    |
-| `system_messages.py` | Provide reusable system prompts for LLM roles |
+```python
+assert_valid_model_config(role: str, config: dict)
+```
+
+Raises helpful errors if:
+
+* Config is missing
+* Keys like `"provider"` or `"model_name"` are not found
+
+Used at the start of the pipeline to prevent silent misconfigurations.
+
+---
+
+## ✅ Summary
+
+| File                 | Purpose                              |
+| -------------------- | ------------------------------------ |
+| `config_loader.py`   | Load config settings                 |
+| `save_results.py`    | Save prompts + cost tracking to disk |
+| `costs.py`           | Track tokens used and compute cost   |
+| `json_utils.py`      | Parse messy JSON returned by LLMs    |
+| `system_messages.py` | Standardized LLM role prompts        |
+| `validation.py`      | Sanity-check model config fields     |
 
 ---

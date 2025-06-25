@@ -4,9 +4,11 @@ from core.orchestration.generate_batch import run_generation_pipeline
 from utils.config_loader import load_config
 from utils.save_results import save_prompts
 
+
 def get_input(prompt, default=None):
     val = input(f"{prompt} [{default}]: ") if default else input(f"{prompt}: ")
     return val.strip() or None
+
 
 def main():
     print("\n🧠 Synthetic Prompt Generator (Interactive Mode)")
@@ -61,10 +63,11 @@ def main():
     config["save_path"] = str(save_path)
 
     print("\n🚀 Running generation pipeline...\n")
-    valid, rejected = run_generation_pipeline(config)
+    valid, rejected, cost_tracker = run_generation_pipeline(config)
 
-    save_prompts(valid, rejected, save_path)
+    save_prompts(valid, rejected, save_path, cost_tracker)
     print("\n🎉 Done.")
+
 
 if __name__ == "__main__":
     main()
