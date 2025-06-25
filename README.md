@@ -1,7 +1,3 @@
-Here is a comprehensive README for your **Synthetic Prompt Agent** project. It captures the full pipeline, modular architecture, API usage, and key developer notes:
-
----
-
 # 🧠 Synthetic Prompt Agent
 
 A modular framework for generating, validating, and filtering high-quality synthetic math prompts to stress-test LLMs. This system orchestrates multiple LLMs (e.g., OpenAI, Gemini, DeepSeek) to produce mastery-level questions with hints, verify their correctness, and assess whether a target model fails to solve them correctly.
