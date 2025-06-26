@@ -46,6 +46,7 @@ def call_openai(system_prompt, user_prompt, model_name):
     from openai import OpenAI
     client = OpenAI(api_key=OPENAI_KEY)
 
+    print(f"🤖 Generator (OpenAI {model_name}) called...")
     response = client.chat.completions.create(
         model=model_name,
         messages=[
@@ -54,15 +55,31 @@ def call_openai(system_prompt, user_prompt, model_name):
         ],
         temperature=1.0
     )
-    return safe_json_parse(response.choices[0].message.content.strip())
+    
+    raw_response = response.choices[0].message.content.strip()
+    print(f"📝 Generator Response (Raw):\n{raw_response}")
+    
+    parsed_data = safe_json_parse(raw_response)
+    print(f"✅ Generator Response (Parsed):\n{json.dumps(parsed_data, indent=2)}")
+    
+    return parsed_data
 
 def call_gemini(messages, model_name):
     import google.generativeai as genai
     genai.configure(api_key=GEMINI_KEY)
     prompt = "\n".join([msg["content"] for msg in messages])
     model = genai.GenerativeModel(model_name=model_name)
+    
+    print(f"🤖 Generator (Gemini {model_name}) called...")
     response = model.generate_content(prompt)
-    return safe_json_parse(response.text)
+    
+    raw_response = response.text
+    print(f"📝 Generator Response (Raw):\n{raw_response}")
+    
+    parsed_data = safe_json_parse(raw_response)
+    print(f"✅ Generator Response (Parsed):\n{json.dumps(parsed_data, indent=2)}")
+    
+    return parsed_data
 
 # --- Main entrypoint ---
 

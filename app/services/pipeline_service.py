@@ -1,5 +1,15 @@
 from app.models.schemas import GenerationRequest
 from core.runner import run_pipeline_from_config
+from fastapi import BackgroundTasks
+from sqlalchemy.orm import Session
+from app.models.database import get_db
+from app.services.batch_service import create_batch, update_batch_cost
+from app.services.problem_service import create_problem
+from app.models.schemas import BatchCreate, ProblemCreate
+from datetime import datetime
+from decimal import Decimal
+import json
+from utils.similarity_utils import fetch_embedding
 
 def run_pipeline(request: GenerationRequest):
     config = {
@@ -10,4 +20,127 @@ def run_pipeline(request: GenerationRequest):
         "taxonomy": request.taxonomy
     }
     return run_pipeline_from_config(config)
+
+async def run_pipeline_background(
+    batch_id: int,
+    config: dict,
+    db: Session
+):
+    """Background task to run the pipeline and save results to database"""
+    try:
+        # Run the pipeline
+        result = run_pipeline_from_config(config)
+        valid_prompts = result["valid_prompts"]
+        discarded_prompts = result["discarded_prompts"]
+        
+        # Save valid prompts to database
+        for prompt in valid_prompts:
+            # Fetch embedding for the problem text
+            problem_text = prompt["problem"]
+            try:
+                embedding_list = fetch_embedding(problem_text)
+                # Convert list to dict for database storage
+                problem_embedding = {"embedding": embedding_list}
+            except Exception as e:
+                print(f"Failed to fetch embedding for problem: {str(e)}")
+                problem_embedding = None
+            
+            problem_data = ProblemCreate(
+                batch_id=batch_id,
+                subject=prompt["subject"],
+                topic=prompt["topic"],
+                question=prompt["problem"],
+                answer=prompt["answer"],
+                hints=prompt["hints"],
+                status="valid",
+                target_model_answer=prompt.get("target_model_answer"),
+                hints_were_corrected=prompt.get("hints_were_corrected", False),
+                cost=Decimal('0.00'),  # No cost calculation as requested
+                problem_embedding=problem_embedding,
+                similar_problems={}
+            )
+            create_problem(db, problem_data)
+        
+        # Save discarded prompts to database
+        for prompt in discarded_prompts:
+            # Fetch embedding for the problem text (even for discarded problems)
+            problem_text = prompt.get("problem", "")
+            problem_embedding = None
+            if problem_text:
+                try:
+                    embedding_list = fetch_embedding(problem_text)
+                    # Convert list to dict for database storage
+                    problem_embedding = {"embedding": embedding_list}
+                except Exception as e:
+                    print(f"Failed to fetch embedding for discarded problem: {str(e)}")
+            
+            problem_data = ProblemCreate(
+                batch_id=batch_id,
+                subject=prompt.get("subject", ""),
+                topic=prompt.get("topic", ""),
+                question=prompt.get("problem", ""),
+                answer=prompt.get("answer", ""),
+                hints=prompt.get("hints", {}),
+                status="discarded",
+                rejection_reason=prompt.get("rejection_reason", ""),
+                target_model_answer=prompt.get("target_model_answer"),
+                hints_were_corrected=prompt.get("hints_were_corrected", False),
+                cost=Decimal('0.00'),  # No cost calculation as requested
+                problem_embedding=problem_embedding,
+                similar_problems={}
+            )
+            create_problem(db, problem_data)
+        
+        print(f"Background pipeline completed for batch {batch_id}")
+        
+    except Exception as e:
+        print(f"Error in background pipeline: {str(e)}")
+
+def start_generation_with_database(
+    request: GenerationRequest,
+    background_tasks: BackgroundTasks,
+    db: Session
+):
+    """Start generation and save to database"""
+    try:
+        # Create batch record
+        batch_data = BatchCreate(
+            name=f"Batch_{request.target_model.model_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+            taxonomy_json=request.taxonomy,
+            pipeline={
+                "engineer_model": request.engineer_model.dict(),
+                "checker_model": request.checker_model.dict(),
+                "target_model": request.target_model.dict()
+            },
+            num_problems=request.num_problems
+        )
+        
+        batch = create_batch(db, batch_data)
+        
+        # Prepare config for background task
+        config = {
+            "num_problems": request.num_problems,
+            "engineer_model": request.engineer_model.dict(),
+            "checker_model": request.checker_model.dict(),
+            "target_model": request.target_model.dict(),
+            "taxonomy": request.taxonomy
+        }
+        
+        # Start background task
+        background_tasks.add_task(
+            run_pipeline_background,
+            batch.id,
+            config,
+            db
+        )
+        
+        return {
+            "status": "started",
+            "batch_id": batch.id,
+            "message": f"Generation started for batch {batch.id}. Generating {request.num_problems} valid problems.",
+            "total_cost": 0.00
+        }
+        
+    except Exception as e:
+        raise RuntimeError(f"Failed to start generation: {str(e)}")
 

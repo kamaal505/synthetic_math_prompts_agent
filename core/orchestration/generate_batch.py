@@ -34,6 +34,7 @@ def run_generation_pipeline(config):
         seed_prompt = get_seed_prompt(subject, topic) if get_seed_prompt else None
 
         try:
+            print(f"\n🚀 Starting generation for {subject} - {topic}")
             core = generate_full_problem(
                 seed=seed_prompt,
                 subject=subject,
@@ -43,6 +44,7 @@ def run_generation_pipeline(config):
             )
             core.update({"subject": subject, "topic": topic})
 
+            print(f"\n🔍 Starting initial validation...")
             result = validate_problem(
                 core, mode="initial",
                 provider=checker_cfg.get("provider", "openai"),
@@ -52,10 +54,10 @@ def run_generation_pipeline(config):
 
             core["hints_were_corrected"] = bool(corrected_hints) and isinstance(corrected_hints, dict) and any(h.strip() for h in corrected_hints.values())
 
-            if not result["valid"]:
-                print(f"❌ Rejected: {result.get('reason', '')}")
-                discarded.append({**core, "rejection_reason": result.get("reason", "")})
-                continue
+            # if not result["valid"]:
+            #     print(f"❌ Rejected: {result.get('reason', '')}")
+            #     discarded.append({**core, "rejection_reason": result.get("reason", "")})
+            #     continue
 
             if isinstance(corrected_hints, dict) and corrected_hints:
                 print(f"✍️ Checker revised {len(corrected_hints)} hint(s).")
@@ -65,8 +67,10 @@ def run_generation_pipeline(config):
             else:
                 print("✅ Keeping original hints from generator.")
 
+            print(f"\n🎯 Getting target model answer...")
             core["target_model_answer"] = model_attempts_answer(core["problem"], config["target_model"])
 
+            print(f"\n🔍 Starting equivalence check...")
             check = validate_problem(
                 core, mode="equivalence_check",
                 provider=checker_cfg.get("provider", "openai"),

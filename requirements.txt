@@ -12,6 +12,12 @@ fastapi>=0.110.0                 # FastAPI backend for API interface
 uvicorn[standard]>=0.29.0        # ASGI server to run FastAPI locally
 
 # =============================
+# Database
+# =============================
+sqlalchemy>=2.0.0                # SQLAlchemy ORM
+alembic>=1.13.0                  # Database migrations
+
+# =============================
 # Utility & Config
 # =============================
 python-dotenv>=1.0.0             # Loads environment variables from .env

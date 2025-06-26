@@ -24,20 +24,38 @@ def safe_json_parse(raw_text: str) -> dict:
 def call_openai(messages: List[Dict[str, str]], model_name="o3-mini") -> dict:
     from openai import OpenAI
     client = OpenAI(api_key=OPENAI_KEY)
+    
+    print(f"🔍 Checker (OpenAI {model_name}) called...")
     response = client.chat.completions.create(
         model=model_name,
         messages=messages,
         temperature=1.0
     )
-    return safe_json_parse(response.choices[0].message.content.strip())
+    
+    raw_response = response.choices[0].message.content.strip()
+    print(f"📝 Checker Response (Raw):\n{raw_response}")
+    
+    parsed_data = safe_json_parse(raw_response)
+    print(f"✅ Checker Response (Parsed):\n{json.dumps(parsed_data, indent=2)}")
+    
+    return parsed_data
 
 def call_gemini(messages, model_name):
     import google.generativeai as genai
     genai.configure(api_key=GEMINI_KEY)
     prompt = "\n".join([msg["content"] for msg in messages])
     model = genai.GenerativeModel(model_name=model_name)
+    
+    print(f"🔍 Checker (Gemini {model_name}) called...")
     response = model.generate_content(prompt)
-    return safe_json_parse(response.text)
+    
+    raw_response = response.text
+    print(f"📝 Checker Response (Raw):\n{raw_response}")
+    
+    parsed_data = safe_json_parse(raw_response)
+    print(f"✅ Checker Response (Parsed):\n{json.dumps(parsed_data, indent=2)}")
+    
+    return parsed_data
 
 def validate_problem(problem_data: dict, mode="initial", provider="openai", model_name="o3-mini") -> dict:
     if mode == "initial":
