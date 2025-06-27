@@ -3,3 +3,4 @@ create_init.py_files.py
 results/
 __pycache__/
 *.pyc
+venv/

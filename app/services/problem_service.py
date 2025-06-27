@@ -16,7 +16,7 @@ def get_problem(db: Session, problem_id: int) -> Optional[Problem]:
 def get_problems(
     db: Session, 
     skip: int = 0, 
-    limit: int = 100,
+    limit: int = 1000,
     batch_id: Optional[int] = None,
     status: Optional[str] = None
 ) -> List[Problem]:

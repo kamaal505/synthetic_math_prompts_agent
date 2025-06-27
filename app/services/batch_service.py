@@ -30,4 +30,35 @@ def update_batch_cost(db: Session, batch_id: int, cost: float) -> Optional[Batch
         batch.batch_cost = cost
         db.commit()
         db.refresh(batch)
-    return batch 
+    return batch
+
+def update_batch_target_model(db: Session, batch_id: int, target_model: dict) -> Optional[Batch]:
+    """Update the target model configuration for a batch"""
+    batch = db.query(Batch).filter(Batch.id == batch_id).first()
+    if batch:
+        # Update the target model in the pipeline
+        pipeline = batch.pipeline.copy()
+        pipeline['target_model'] = target_model
+        batch.pipeline = pipeline
+        db.commit()
+        db.refresh(batch)
+        return batch
+    return None
+
+def get_problems_count(db: Session, batch_id: Optional[int] = None) -> dict:
+    """Get the number of problems - either for a specific batch or total across all batches"""
+    from app.models.models import Problem
+    
+    if batch_id is not None:
+        # Count problems for specific batch
+        count = db.query(Problem).filter(Problem.batch_id == batch_id).count()
+        return {
+            "batch_id": batch_id,
+            "problems_count": count
+        }
+    else:
+        # Count total problems across all batches
+        total_count = db.query(Problem).count()
+        return {
+            "total_problems_count": total_count
+        } 

@@ -138,3 +138,6 @@ class PipelineConfig(BaseModel):
     checker: Dict[str, str]
     target: Dict[str, str]
     judge: Dict[str, str]
+
+class TargetModelUpdate(BaseModel):
+    target_model: ModelConfig
