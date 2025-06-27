@@ -62,7 +62,7 @@ class BatchBase(BaseModel):
     num_problems: int
 
 class BatchCreate(BatchBase):
-    pass
+    batch_cost: Optional[Decimal] = 0.00
 
 class Batch(BatchBase):
     id: int

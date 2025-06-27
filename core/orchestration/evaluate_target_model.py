@@ -54,6 +54,7 @@ def model_attempts_answer(problem: str, model_config: Dict) -> Dict:
         if not OPENAI_KEY:
             raise EnvironmentError("Missing OPENAI_KEY")
 
+        print(f"   📞 Calling OpenAI {model_name}...")
         response = openai_client.chat.completions.create(
             model=model_name,
             messages=messages,
@@ -61,6 +62,7 @@ def model_attempts_answer(problem: str, model_config: Dict) -> Dict:
         )
         choice = response.choices[0]
         usage = response.usage
+        print(f"   ✅ OpenAI {model_name} responded successfully")
         return {
             "output": choice.message.content.strip(),
             "tokens_prompt": usage.prompt_tokens,
@@ -71,6 +73,7 @@ def model_attempts_answer(problem: str, model_config: Dict) -> Dict:
         if not DEEPSEEK_KEY:
             raise EnvironmentError("Missing DEEPSEEK_KEY for Fireworks API")
 
+        print(f"   📞 Calling DeepSeek {model_name}...")
         url = "https://api.fireworks.ai/inference/v1/chat/completions"
         payload = {
             "model": model_name,
@@ -94,6 +97,7 @@ def model_attempts_answer(problem: str, model_config: Dict) -> Dict:
         result = response.json()
         choice = result["choices"][0]["message"]["content"].strip()
         usage = result.get("usage", {})
+        print(f"   ✅ DeepSeek {model_name} responded successfully")
         return {
             "output": choice,
             "tokens_prompt": usage.get("prompt_tokens", 0),
@@ -104,9 +108,11 @@ def model_attempts_answer(problem: str, model_config: Dict) -> Dict:
         if not GEMINI_KEY:
             raise EnvironmentError("Missing GEMINI_KEY")
 
+        print(f"   📞 Calling Gemini {model_name}...")
         model = genai.GenerativeModel(model_name=model_name)
         response = model.generate_content(problem)
         # Gemini doesn't expose usage reliably in current SDK
+        print(f"   ✅ Gemini {model_name} responded successfully")
         return {
             "output": response.text.strip(),
             "tokens_prompt": 0,

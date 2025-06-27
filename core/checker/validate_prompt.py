@@ -14,6 +14,7 @@ def call_openai(messages: List[Dict[str, str]], model_name: str) -> dict:
     """
     Calls OpenAI checker and returns parsed response with token usage.
     """
+    print(f"   📞 Calling OpenAI {model_name}...")
     prompt = "\n".join([m["content"].strip() for m in messages])
     response = call_openai_model("checker", prompt, model_name, effort="low")
 
@@ -25,6 +26,7 @@ def call_openai(messages: List[Dict[str, str]], model_name: str) -> dict:
         "tokens_prompt": response.get("tokens_prompt", 0),
         "tokens_completion": response.get("tokens_completion", 0)
     })
+    print(f"   ✅ OpenAI {model_name} responded successfully")
     return parsed
 
 
@@ -37,13 +39,14 @@ def call_gemini(messages, model_name):
     prompt = "\n".join([msg["content"] for msg in messages])
     model = genai.GenerativeModel(model_name=model_name)
     
-    print(f"🔍 Checker (Gemini {model_name}) called...")
+    print(f"   📞 Calling Gemini {model_name}...")
     response = model.generate_content(prompt)
     parsed = safe_json_parse(response.text)
     parsed.update({
         "tokens_prompt": 0,
         "tokens_completion": 0
     })
+    print(f"   ✅ Gemini {model_name} responded successfully")
     return parsed
 
 

@@ -47,19 +47,34 @@ def run_generation_pipeline(config):
 
         try:
             # Step 1: Engineer
+            print(f"\n🤖 Calling ENGINEER model ({engineer_cfg['provider']}/{engineer_cfg['model_name']})...")
             engineer_result = call_engineer(subject, topic, seed_prompt, engineer_cfg)
             cost_tracker.log(engineer_cfg, engineer_result["tokens_prompt"], engineer_result["tokens_completion"])
+            print(f"✅ ENGINEER Response:")
+            print(f"   Subject: {engineer_result['subject']}")
+            print(f"   Topic: {engineer_result['topic']}")
+            print(f"   Problem: {engineer_result['problem'][:100]}...")
+            print(f"   Answer: {engineer_result['answer']}")
+            print(f"   Hints: {len(engineer_result['hints'])} hints generated")
+            
             core = {
-                "subject": subject,
-                "topic": topic,
+                "subject": engineer_result["subject"],
+                "topic": engineer_result["topic"],
                 "problem": engineer_result["problem"],
                 "answer": engineer_result["answer"],
                 "hints": engineer_result["hints"]
             }
 
             # Step 2: Checker validation
+            print(f"\n🔍 Calling CHECKER model ({checker_cfg['provider']}/{checker_cfg['model_name']}) for initial validation...")
             checker_result = call_checker(core, checker_cfg, mode="initial")
             cost_tracker.log(checker_cfg, checker_result["tokens_prompt"], checker_result["tokens_completion"])
+            print(f"✅ CHECKER Response:")
+            print(f"   Valid: {checker_result['valid']}")
+            if not checker_result['valid']:
+                print(f"   Reason: {checker_result.get('reason', 'No reason provided')}")
+            if checker_result.get('corrected_hints'):
+                print(f"   Corrected hints: {len(checker_result['corrected_hints'])} hints revised")
 
             corrected_hints = checker_result.get("corrected_hints")
 
@@ -81,13 +96,23 @@ def run_generation_pipeline(config):
                 print("✅ Keeping original hints from generator.")
 
             # Step 3: Target model attempts
+            print(f"\n🧠 Calling TARGET model ({target_cfg['provider']}/{target_cfg['model_name']}) to solve the problem...")
             target_result = call_target_model(core["problem"], target_cfg)
             cost_tracker.log(target_cfg, target_result["tokens_prompt"], target_result["tokens_completion"])
+            print(f"✅ TARGET Response:")
+            print(f"   Model Answer: {target_result['output']}")
+            print(f"   Expected Answer: {core['answer']}")
+            
             core["target_model_answer"] = target_result["output"]
 
             # Step 4: Checker judges model's answer
+            print(f"\n🔍 Calling CHECKER model ({checker_cfg['provider']}/{checker_cfg['model_name']}) for equivalence check...")
             final_check = call_checker(core, checker_cfg, mode="equivalence_check")
             cost_tracker.log(checker_cfg, final_check["tokens_prompt"], final_check["tokens_completion"])
+            print(f"✅ CHECKER Equivalence Response:")
+            print(f"   Valid (model solved correctly): {final_check.get('valid', False)}")
+            if final_check.get('reason'):
+                print(f"   Reason: {final_check['reason']}")
 
             if not final_check.get("valid", False):
                 print("🧠 Target model failed — Accepted!")

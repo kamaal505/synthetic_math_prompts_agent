@@ -12,6 +12,7 @@ def call_openai(system_prompt, user_prompt, model_name):
     """
     Calls OpenAI model with response-style API and returns parsed output + token usage.
     """
+    print(f"   📞 Calling OpenAI {model_name}...")
     full_prompt = f"{system_prompt.strip()}\n\n{user_prompt.strip()}"
     response = call_openai_model("engineer", full_prompt, model_name, effort="medium")
 
@@ -23,6 +24,7 @@ def call_openai(system_prompt, user_prompt, model_name):
         "tokens_prompt": response.get("tokens_prompt", 0),
         "tokens_completion": response.get("tokens_completion", 0)
     })
+    print(f"   ✅ OpenAI {model_name} responded successfully")
     return parsed
 
 
@@ -35,13 +37,14 @@ def call_gemini(messages, model_name):
     prompt = "\n".join([msg["content"] for msg in messages])
     model = genai.GenerativeModel(model_name=model_name)
     
-    print(f"🤖 Generator (Gemini {model_name}) called...")
+    print(f"   📞 Calling Gemini {model_name}...")
     response = model.generate_content(prompt)
     parsed = safe_json_parse(response.text)
     parsed.update({
         "tokens_prompt": 0,
         "tokens_completion": 0
     })
+    print(f"   ✅ Gemini {model_name} responded successfully")
     return parsed
 
 

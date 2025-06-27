@@ -32,6 +32,10 @@ async def run_pipeline_background(
         result = run_pipeline_from_config(config)
         valid_prompts = result["valid_prompts"]
         discarded_prompts = result["discarded_prompts"]
+        total_cost = result["total_cost"]
+        
+        # Update batch cost with the total cost from the pipeline
+        update_batch_cost(db, batch_id, total_cost)
         
         # Save valid prompts to database
         for prompt in valid_prompts:
@@ -91,7 +95,7 @@ async def run_pipeline_background(
             )
             create_problem(db, problem_data)
         
-        print(f"Background pipeline completed for batch {batch_id}")
+        print(f"Background pipeline completed for batch {batch_id}. Total cost: ${total_cost:.6f}")
         
     except Exception as e:
         print(f"Error in background pipeline: {str(e)}")
@@ -103,7 +107,7 @@ def start_generation_with_database(
 ):
     """Start generation and save to database"""
     try:
-        # Create batch record
+        # Create batch record with initial cost of 0.00
         batch_data = BatchCreate(
             name=f"Batch_{request.target_model.model_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
             taxonomy_json=request.taxonomy,
@@ -112,7 +116,8 @@ def start_generation_with_database(
                 "checker_model": request.checker_model.dict(),
                 "target_model": request.target_model.dict()
             },
-            num_problems=request.num_problems
+            num_problems=request.num_problems,
+            batch_cost=0.00  # Initial cost, will be updated by background task
         )
         
         batch = create_batch(db, batch_data)
@@ -138,7 +143,7 @@ def start_generation_with_database(
             "status": "started",
             "batch_id": batch.id,
             "message": f"Generation started for batch {batch.id}. Generating {request.num_problems} valid problems.",
-            "total_cost": 0.00
+            "total_cost": 0.00  # Initial cost, will be updated when background task completes
         }
         
     except Exception as e:
