@@ -212,4 +212,4 @@ Test the API using tools like Postman, curl, or the built-in FastAPI docs at `ht
 
 ## License
 
-This project maintains the same license as the original synthetic math prompts agent. 
+This project maintains the same license as the original synthetic math prompts agent.

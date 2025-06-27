@@ -1,70 +1,35 @@
 import os
-import json
-import re
 from dotenv import load_dotenv
-
 from utils.system_messages import ENGINEER_MESSAGE
+from utils.json_utils import safe_json_parse
+from core.llm.openai_utils import call_openai_model
 
-# Load API keys
 load_dotenv()
-OPENAI_KEY = os.getenv("OPENAI_KEY")
 GEMINI_KEY = os.getenv("GEMINI_KEY")
 
-# --- Utility ---
-
-def safe_json_parse(raw_text):
-    
-    raw_text = raw_text.strip()
-
-    # Strip Markdown ```json or ``` markers
-    raw_text = re.sub(r"^```(?:json)?\s*", "", raw_text, flags=re.IGNORECASE)
-    raw_text = re.sub(r"\s*```$", "", raw_text)
-
-    # Trim to { ... } block if there's garbage around
-    json_start = raw_text.find('{')
-    json_end = raw_text.rfind('}') + 1
-    if json_start == -1 or json_end == -1:
-        raise ValueError("No JSON block detected.")
-    raw_text = raw_text[json_start:json_end]
-
-    # Fix invalid quote escaping (e.g., \" inside a value)
-    raw_text = raw_text.replace('\\"', '"')
-
-    # Escape LaTeX-style backslashes if not already escaped
-    raw_text = re.sub(r'(?<!\\)\\(?![\\nt"\\/bfr])', r'\\\\', raw_text)
-
-    try:
-        return json.loads(raw_text)
-    except json.JSONDecodeError as e:
-        print("⚠️ JSON decode error at char", e.pos)
-        print("🔍 Offending context:\n", raw_text[e.pos-40:e.pos+40])
-        raise ValueError(f"Output is not valid JSON: {e}")
-    
-# --- LLM call wrappers ---
 
 def call_openai(system_prompt, user_prompt, model_name):
-    from openai import OpenAI
-    client = OpenAI(api_key=OPENAI_KEY)
+    """
+    Calls OpenAI model with response-style API and returns parsed output + token usage.
+    """
+    full_prompt = f"{system_prompt.strip()}\n\n{user_prompt.strip()}"
+    response = call_openai_model("engineer", full_prompt, model_name, effort="medium")
 
-    print(f"🤖 Generator (OpenAI {model_name}) called...")
-    response = client.chat.completions.create(
-        model=model_name,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ],
-        temperature=1.0
-    )
-    
-    raw_response = response.choices[0].message.content.strip()
-    print(f"📝 Generator Response (Raw):\n{raw_response}")
-    
-    parsed_data = safe_json_parse(raw_response)
-    print(f"✅ Generator Response (Parsed):\n{json.dumps(parsed_data, indent=2)}")
-    
-    return parsed_data
+    if not response or "output" not in response:
+        raise ValueError(f"OpenAI model '{model_name}' returned no usable output.")
+
+    parsed = safe_json_parse(response["output"])
+    parsed.update({
+        "tokens_prompt": response.get("tokens_prompt", 0),
+        "tokens_completion": response.get("tokens_completion", 0)
+    })
+    return parsed
+
 
 def call_gemini(messages, model_name):
+    """
+    Calls Gemini model and returns parsed output + zero token counts (not supported yet).
+    """
     import google.generativeai as genai
     genai.configure(api_key=GEMINI_KEY)
     prompt = "\n".join([msg["content"] for msg in messages])
@@ -72,27 +37,29 @@ def call_gemini(messages, model_name):
     
     print(f"🤖 Generator (Gemini {model_name}) called...")
     response = model.generate_content(prompt)
-    
-    raw_response = response.text
-    print(f"📝 Generator Response (Raw):\n{raw_response}")
-    
-    parsed_data = safe_json_parse(raw_response)
-    print(f"✅ Generator Response (Parsed):\n{json.dumps(parsed_data, indent=2)}")
-    
-    return parsed_data
+    parsed = safe_json_parse(response.text)
+    parsed.update({
+        "tokens_prompt": 0,
+        "tokens_completion": 0
+    })
+    return parsed
 
-# --- Main entrypoint ---
 
-def generate_full_problem(seed=None, subject=None, topic=None, provider="gemini", model_name="gemini-2.5-pro"):
-    user_prompt = f"Generate a math problem in {subject} under the topic '{topic}' with hints." if subject and topic else "Generate a new math problem with hints."
+def generate_full_problem(seed, subject, topic, provider, model_name):
+    """
+    Generates a math problem with hints and returns full data + token usage.
+    """
+    user_prompt = f"Generate a math problem in {subject} under the topic '{topic}' with hints."
     if seed:
         user_prompt += f"\nUse this real-world example as inspiration:\n{seed}"
 
+    system_prompt = ENGINEER_MESSAGE
+
     if provider == "openai":
-        data = call_openai(ENGINEER_MESSAGE, user_prompt, model_name)
+        data = call_openai(system_prompt, user_prompt, model_name)
     elif provider == "gemini":
         messages = [
-            {"role": "system", "content": ENGINEER_MESSAGE},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
         ]
         data = call_gemini(messages, model_name)
@@ -108,5 +75,7 @@ def generate_full_problem(seed=None, subject=None, topic=None, provider="gemini"
         "topic": data["topic"],
         "problem": data["problem"],
         "answer": data["answer"],
-        "hints": data["hints"]
+        "hints": data["hints"],
+        "tokens_prompt": data.get("tokens_prompt", 0),
+        "tokens_completion": data.get("tokens_completion", 0)
     }

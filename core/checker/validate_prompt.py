@@ -1,46 +1,37 @@
 import os
 import json
-import re
 from typing import List, Dict
 from dotenv import load_dotenv
+from utils.system_messages import CHECKER_MESSAGE
+from utils.json_utils import safe_json_parse
+from core.llm.openai_utils import call_openai_model
 
 load_dotenv()
-OPENAI_KEY = os.getenv("OPENAI_KEY")
 GEMINI_KEY = os.getenv("GEMINI_KEY")
 
-from utils.system_messages import CHECKER_MESSAGE
 
-def safe_json_parse(raw_text: str) -> dict:
-    raw_text = raw_text.strip()
-    if raw_text.startswith("```json"):
-        raw_text = raw_text[7:]
-    elif raw_text.startswith("```"):
-        raw_text = raw_text[3:]
-    if raw_text.endswith("```"):
-        raw_text = raw_text[:-3]
-    raw_text = re.sub(r'(?<!\\)\\(?![\\nt"\\/bfr])', r'\\\\', raw_text)
-    return json.loads(raw_text)
+def call_openai(messages: List[Dict[str, str]], model_name: str) -> dict:
+    """
+    Calls OpenAI checker and returns parsed response with token usage.
+    """
+    prompt = "\n".join([m["content"].strip() for m in messages])
+    response = call_openai_model("checker", prompt, model_name, effort="low")
 
-def call_openai(messages: List[Dict[str, str]], model_name="o3-mini") -> dict:
-    from openai import OpenAI
-    client = OpenAI(api_key=OPENAI_KEY)
-    
-    print(f"🔍 Checker (OpenAI {model_name}) called...")
-    response = client.chat.completions.create(
-        model=model_name,
-        messages=messages,
-        temperature=1.0
-    )
-    
-    raw_response = response.choices[0].message.content.strip()
-    print(f"📝 Checker Response (Raw):\n{raw_response}")
-    
-    parsed_data = safe_json_parse(raw_response)
-    print(f"✅ Checker Response (Parsed):\n{json.dumps(parsed_data, indent=2)}")
-    
-    return parsed_data
+    if not response or "output" not in response:
+        raise ValueError(f"OpenAI model '{model_name}' returned no usable output.")
+
+    parsed = safe_json_parse(response["output"])
+    parsed.update({
+        "tokens_prompt": response.get("tokens_prompt", 0),
+        "tokens_completion": response.get("tokens_completion", 0)
+    })
+    return parsed
+
 
 def call_gemini(messages, model_name):
+    """
+    Calls Gemini checker and returns parsed response with zero token metadata.
+    """
     import google.generativeai as genai
     genai.configure(api_key=GEMINI_KEY)
     prompt = "\n".join([msg["content"] for msg in messages])
@@ -48,16 +39,19 @@ def call_gemini(messages, model_name):
     
     print(f"🔍 Checker (Gemini {model_name}) called...")
     response = model.generate_content(prompt)
-    
-    raw_response = response.text
-    print(f"📝 Checker Response (Raw):\n{raw_response}")
-    
-    parsed_data = safe_json_parse(raw_response)
-    print(f"✅ Checker Response (Parsed):\n{json.dumps(parsed_data, indent=2)}")
-    
-    return parsed_data
+    parsed = safe_json_parse(response.text)
+    parsed.update({
+        "tokens_prompt": 0,
+        "tokens_completion": 0
+    })
+    return parsed
 
-def validate_problem(problem_data: dict, mode="initial", provider="openai", model_name="o3-mini") -> dict:
+
+def validate_problem(problem_data: dict, mode, provider, model_name):
+    """
+    Validates a problem or performs answer equivalence check.
+    Returns checker result + token usage.
+    """
     if mode == "initial":
         user_prompt = {
             "problem": problem_data["problem"],
