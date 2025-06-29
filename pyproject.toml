@@ -1,0 +1,33 @@
+[project]
+name = "synthetic-math-prompts-agent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    # =============================
+    # LLM Clients
+    # =============================
+    "openai>=1.0.0",                    # For OpenAI LLMs (e.g., o1, o3, GPT-4)
+    "google-generativeai>=0.4.1",       # For Gemini models via Generative AI SDK
+    "requests>=2.31.0",                 # For DeepSeek R1 via Fireworks HTTP API
+
+    # =============================
+    # Web Framework
+    # =============================
+    "fastapi>=0.110.0",                 # FastAPI backend for API interface
+    "uvicorn[standard]>=0.29.0",        # ASGI server to run FastAPI locally
+
+    # =============================
+    # Utility & Config
+    # =============================
+    "python-dotenv>=1.0.0",             # Loads environment variables from .env
+    "PyYAML>=6.0.1",                    # For loading config/settings.yaml
+    "pandas>=2.2.1",                    # (Optional) For structured data inspection
+    "tqdm>=4.66.2",                     # (Optional) For progress bars in CLI
+
+    # =============================
+    # Pydantic (for schemas)
+    # =============================
+    "pydantic>=2.7.1",                  # Required by FastAPI and custom request/response models
+]
