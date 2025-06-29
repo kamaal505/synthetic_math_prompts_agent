@@ -1,4 +1,5 @@
 num_problems: 10
+max_workers: 10
 
 taxonomy:
   Complex Analysis:
