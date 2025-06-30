@@ -407,6 +407,15 @@ wheels = [
 ]
 
 [[package]]
+name = "json-repair"
+version = "0.47.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/21/cc/db6733ea42975b3d2cb793cb1293c5aa515277417e206775bfbdfa77ef6f/json_repair-0.47.4.tar.gz", hash = "sha256:f41a1f18564698cf40995265d591ea2387046ee998759990b3ea3e8134ec1d1e", size = 33912 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a0/7a/6ca500f46040992a3e06fea1f434543fa5e0528df086be85426e5cc9367e/json_repair-0.47.4-py3-none-any.whl", hash = "sha256:ce1738135f25448bd44b42faea54aca2a1985ec7b1c35afb8ffcc8799b31980e", size = 22491 },
+]
+
+[[package]]
 name = "numpy"
 version = "2.3.1"
 source = { registry = "https://pypi.org/simple" }
@@ -733,6 +742,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "google-generativeai" },
+    { name = "json-repair" },
     { name = "openai" },
     { name = "pandas" },
     { name = "pydantic" },
@@ -747,6 +757,7 @@ dependencies = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.110.0" },
     { name = "google-generativeai", specifier = ">=0.4.1" },
+    { name = "json-repair", specifier = ">=0.47.4" },
     { name = "openai", specifier = ">=1.0.0" },
     { name = "pandas", specifier = ">=2.2.1" },
     { name = "pydantic", specifier = ">=2.7.1" },
