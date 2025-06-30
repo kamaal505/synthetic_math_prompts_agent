@@ -1,11 +1,10 @@
 import concurrent.futures
-import json
 import threading
-from pathlib import Path
 from random import choice
 
 from core.llm.llm_dispatch import call_checker, call_engineer, call_target_model
 from utils.costs import CostTracker
+from utils.logging_config import log_error, log_info
 from utils.validation import assert_valid_model_config
 
 
@@ -25,7 +24,7 @@ def _generate_and_validate_prompt(config, cost_tracker):
     """
     # Log thread start with thread ID
     thread_id = threading.current_thread().ident
-    print(f"🧵 Thread {thread_id} starting task processing")
+    log_info(f"🧵 Thread {thread_id} starting task processing")
 
     taxonomy = config.get("taxonomy")
     subject = choice(list(taxonomy.keys())) if taxonomy else config.get("subject")
@@ -74,17 +73,17 @@ def _generate_and_validate_prompt(config, cost_tracker):
         )
 
         if not checker_result["valid"]:
-            print(f"❌ Rejected: {checker_result.get('reason', '')}")
+            log_info(f"❌ Rejected: {checker_result.get('reason', '')}")
             return "discarded", {
                 **core,
                 "rejection_reason": checker_result.get("reason", ""),
             }
 
         if corrected_hints:
-            print(f"✍️ Checker revised {len(corrected_hints)} hint(s).")
+            log_info(f"✍️ Checker revised {len(corrected_hints)} hint(s).")
             core["hints"] = corrected_hints
         else:
-            print("✅ Keeping original hints from generator.")
+            log_info("✅ Keeping original hints from generator.")
 
         # Step 3: Target model attempts
         target_result = call_target_model(core["problem"], target_cfg)
@@ -102,17 +101,17 @@ def _generate_and_validate_prompt(config, cost_tracker):
         )
 
         if not final_check.get("valid", False):
-            print("🧠 Target model failed — Accepted!")
+            log_info("🧠 Target model failed — Accepted!")
             return "accepted", core
         else:
-            print("🟡 Model answered correctly — Discarded.")
+            log_info("🟡 Model answered correctly — Discarded.")
             return "discarded", {
                 **core,
                 "rejection_reason": "Target model solved correctly",
             }
 
     except Exception as e:
-        print(f"🚨 Error: {e}")
+        log_error(f"🚨 Error in pipeline task", e)
         return "error", {
             "error": str(e),
             "subject": subject,
@@ -150,7 +149,7 @@ def run_generation_pipeline(config):
     max_workers = config.get("max_workers", 10)
 
     # Log parallel execution start with worker count
-    print(f"🚀 Starting parallel execution with {max_workers} worker threads")
+    log_info(f"🚀 Starting parallel execution with {max_workers} worker threads")
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         # Submit initial batch of tasks
@@ -195,8 +194,8 @@ def run_generation_pipeline(config):
                 for future, attempt_num in completed_futures:
                     try:
                         result_type, data = future.result()
-                        print(
-                            f"\n🔧 Attempt {attempt_num} — Approved so far: {approved_count}/{target_total}"
+                        log_info(
+                            f"🔧 Attempt {attempt_num} — Approved so far: {approved_count}/{target_total}"
                         )
 
                         if result_type == "accepted":
@@ -205,7 +204,7 @@ def run_generation_pipeline(config):
                         else:  # "discarded" or "error"
                             discarded.append(data)
                     except Exception as e:
-                        print(
+                        log_error(
                             f"🚨 Future execution error in attempt {attempt_num}: {e}"
                         )
                         discarded.append(

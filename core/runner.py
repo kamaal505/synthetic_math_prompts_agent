@@ -1,6 +1,6 @@
-import traceback
-
 from core.orchestration.generate_batch import run_generation_pipeline
+from utils.exceptions import PipelineError
+from utils.logging_config import log_error
 
 
 def run_pipeline_from_config(config: dict) -> dict:
@@ -15,5 +15,5 @@ def run_pipeline_from_config(config: dict) -> dict:
             },
         }
     except Exception as e:
-        print(traceback.format_exc())
-        raise RuntimeError(f"Pipeline crashed: {e}")
+        log_error("🚨 Pipeline execution failed", e)
+        raise PipelineError(f"Pipeline crashed: {e}", stage="execution")
