@@ -1,10 +1,14 @@
-import os
 import json
+import os
 from pathlib import Path
-from utils.costs import CostTracker  # Optional, for type hints
+
+from utils.costs import CostTracker
+from utils.logging_config import log_info  # Optional, for type hints
 
 
-def save_prompts(valid_list, discarded_list, save_path, cost_tracker: CostTracker = None):
+def save_prompts(
+    valid_list, discarded_list, save_path, cost_tracker: CostTracker = None
+):
     save_dir = Path(save_path)
     os.makedirs(save_dir, exist_ok=True)
 
@@ -21,8 +25,9 @@ def save_prompts(valid_list, discarded_list, save_path, cost_tracker: CostTracke
         with open(save_dir / "costs.json", "w", encoding="utf-8") as f:
             json.dump(cost_tracker.as_dict(run_id=run_id), f, indent=2)
 
-    print(f"\n📁 Results saved to: {save_dir}")
-    print(f"✅ valid.json ({len(valid_list)} entries)")
-    print(f"❌ discarded.json ({len(discarded_list)} entries)")
+    log_info(f"📁 Results saved to: {save_dir}")
+    log_info(f"✅ valid.json ({len(valid_list)} entries)")
+    log_info(f"❌ discarded.json ({len(discarded_list)} entries)")
     if cost_tracker:
-        print(f"💰 costs.json saved (Total: ${cost_tracker.get_total_cost():.6f})")
+        log_info(f"💰 costs.json saved (Total: ${cost_tracker.get_total_cost():.6f})")
+        log_info(f"💰 costs.json saved (Total: ${cost_tracker.get_total_cost():.6f})")

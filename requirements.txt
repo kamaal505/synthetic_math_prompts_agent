@@ -24,6 +24,7 @@ python-dotenv>=1.0.0             # Loads environment variables from .env
 PyYAML>=6.0.1                    # For loading config/settings.yaml
 pandas>=2.2.1                    # (Optional) For structured data inspection
 tqdm>=4.66.2                     # (Optional) For progress bars in CLI
+json-repair>=0.25.0              # For automated JSON repair functionality
 
 # =============================
 # Pydantic (for schemas)

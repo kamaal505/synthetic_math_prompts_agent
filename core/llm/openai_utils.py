@@ -1,6 +1,10 @@
 import os
+
 from dotenv import load_dotenv
 from openai import OpenAI
+
+from utils.exceptions import ModelError
+from utils.logging_config import log_debug
 
 load_dotenv()
 OPENAI_KEY = os.getenv("OPENAI_KEY")
@@ -29,7 +33,9 @@ def extract_tokens_from_response(response) -> tuple[int, int]:
     return tokens_prompt or 0, tokens_completion or 0
 
 
-def call_openai_model(role: str, prompt: str, model_name: str, effort: str = "medium") -> dict:
+def call_openai_model(
+    role: str, prompt: str, model_name: str, effort: str = "medium"
+) -> dict:
     """
     Calls OpenAI model and returns output + token usage metadata.
     Supports both chat and responses APIs. Returns None if output is missing.
@@ -40,42 +46,46 @@ def call_openai_model(role: str, prompt: str, model_name: str, effort: str = "me
         response = client.chat.completions.create(
             model=model_name,
             messages=[{"role": "user", "content": prompt}],
-            temperature=1.0
+            temperature=1.0,
         )
 
         tokens_prompt, tokens_completion = extract_tokens_from_response(response)
         output_text = response.choices[0].message.content.strip()
 
         if not output_text:
-            print(f"[❗] Chat model '{model_name}' returned empty content.")
+            log_debug(f"[❗] Chat model '{model_name}' returned empty content.")
             return None
 
         return {
             "output": output_text,
             "tokens_prompt": tokens_prompt,
-            "tokens_completion": tokens_completion
+            "tokens_completion": tokens_completion,
         }
 
     elif model_name in {"o1", "o3", "o3-mini", "o4", "o4-mini"}:
         response = client.responses.create(
             model=model_name,
             reasoning={"effort": effort},
-            input=[{"role": "user", "content": prompt}]
+            input=[{"role": "user", "content": prompt}],
         )
 
         tokens_prompt, tokens_completion = extract_tokens_from_response(response)
 
         if not hasattr(response, "output_text") or not response.output_text.strip():
-            print(f"[❗] Responses model '{model_name}' returned no output_text.")
-            print("🔍 Full response for debugging:")
-            print(response.model_dump_json(indent=2))
+            log_debug(f"[❗] Responses model '{model_name}' returned no output_text.")
+            log_debug("🔍 Full response for debugging:")
+            log_debug(response.model_dump_json(indent=2))
             return None
 
         return {
             "output": response.output_text.strip(),
             "tokens_prompt": tokens_prompt,
-            "tokens_completion": tokens_completion
+            "tokens_completion": tokens_completion,
         }
 
     else:
-        raise ValueError(f"Unsupported or deprecated OpenAI model: '{model_name}'")
+        raise ModelError(
+            f"Unsupported or deprecated OpenAI model: '{model_name}'",
+            model_name=model_name,
+            provider="openai",
+        )

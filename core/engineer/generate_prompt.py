@@ -1,8 +1,12 @@
 import os
+
 from dotenv import load_dotenv
-from utils.system_messages import ENGINEER_MESSAGE
-from utils.json_utils import safe_json_parse
+
 from core.llm.openai_utils import call_openai_model
+from utils.exceptions import ModelError, ValidationError
+from utils.json_utils import safe_json_parse
+from utils.logging_config import log_info
+from utils.system_messages import ENGINEER_MESSAGE
 
 load_dotenv()
 GEMINI_KEY = os.getenv("GEMINI_KEY")
@@ -12,19 +16,23 @@ def call_openai(system_prompt, user_prompt, model_name):
     """
     Calls OpenAI model with response-style API and returns parsed output + token usage.
     """
-    print(f"   📞 Calling OpenAI {model_name}...")
     full_prompt = f"{system_prompt.strip()}\n\n{user_prompt.strip()}"
     response = call_openai_model("engineer", full_prompt, model_name, effort="medium")
 
     if not response or "output" not in response:
-        raise ValueError(f"OpenAI model '{model_name}' returned no usable output.")
+        raise ModelError(
+            f"OpenAI model '{model_name}' returned no usable output.",
+            model_name=model_name,
+            provider="openai",
+        )
 
     parsed = safe_json_parse(response["output"])
-    parsed.update({
-        "tokens_prompt": response.get("tokens_prompt", 0),
-        "tokens_completion": response.get("tokens_completion", 0)
-    })
-    print(f"   ✅ OpenAI {model_name} responded successfully")
+    parsed.update(
+        {
+            "tokens_prompt": response.get("tokens_prompt", 0),
+            "tokens_completion": response.get("tokens_completion", 0),
+        }
+    )
     return parsed
 
 
@@ -33,18 +41,13 @@ def call_gemini(messages, model_name):
     Calls Gemini model and returns parsed output + zero token counts (not supported yet).
     """
     import google.generativeai as genai
+
     genai.configure(api_key=GEMINI_KEY)
     prompt = "\n".join([msg["content"] for msg in messages])
     model = genai.GenerativeModel(model_name=model_name)
-    
-    print(f"   📞 Calling Gemini {model_name}...")
     response = model.generate_content(prompt)
     parsed = safe_json_parse(response.text)
-    parsed.update({
-        "tokens_prompt": 0,
-        "tokens_completion": 0
-    })
-    print(f"   ✅ Gemini {model_name} responded successfully")
+    parsed.update({"tokens_prompt": 0, "tokens_completion": 0})
     return parsed
 
 
@@ -52,9 +55,11 @@ def generate_full_problem(seed, subject, topic, provider, model_name):
     """
     Generates a math problem with hints and returns full data + token usage.
     """
-    user_prompt = f"Generate a math problem in {subject} under the topic '{topic}' with hints."
+    user_prompt = (
+        f"Generate a math problem in {subject} under the topic '{topic}' with hints."
+    )
     if seed:
-        user_prompt += f"\nUse this real-world example as inspiration:\n{seed}"
+        user_prompt += f"Use this real-world example as inspiration:\n{seed}"
 
     system_prompt = ENGINEER_MESSAGE
 
@@ -63,16 +68,18 @@ def generate_full_problem(seed, subject, topic, provider, model_name):
     elif provider == "gemini":
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
+            {"role": "user", "content": user_prompt},
         ]
         data = call_gemini(messages, model_name)
     else:
-        raise ValueError(f"Unsupported engineer provider: {provider}")
+        raise ModelError(
+            f"Unsupported engineer provider: {provider}", provider=provider
+        )
 
     if not isinstance(data.get("hints"), dict) or len(data["hints"]) < 3:
-        raise ValueError("Invalid or too few hints returned.")
+        raise ValidationError("Invalid or too few hints returned.", field="hints")
 
-    print(f"✅ Problem generated with {len(data['hints'])} hints.")
+    log_info(f"✅ Problem generated with {len(data['hints'])} hints.")
     return {
         "subject": data["subject"],
         "topic": data["topic"],
@@ -80,5 +87,5 @@ def generate_full_problem(seed, subject, topic, provider, model_name):
         "answer": data["answer"],
         "hints": data["hints"],
         "tokens_prompt": data.get("tokens_prompt", 0),
-        "tokens_completion": data.get("tokens_completion", 0)
+        "tokens_completion": data.get("tokens_completion", 0),
     }
