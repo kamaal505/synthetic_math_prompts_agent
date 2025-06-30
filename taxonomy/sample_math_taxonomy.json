@@ -1,0 +1,14 @@
+{
+    "Complex Analysis": [
+        "Contour Integration",
+        "Analytic Functions"
+    ],
+    "Algebra": [
+        "Galois Theory",
+        "Polynomial Rings"
+    ],
+    "Linear Algebra": [
+        "Spectral Theorem",
+        "Matrix Similarity"
+    ]
+}
