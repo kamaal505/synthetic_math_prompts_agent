@@ -1,5 +1,5 @@
-from core.engineer.generate_prompt import generate_full_problem
 from core.checker.validate_prompt import validate_problem
+from core.engineer.generate_prompt import generate_full_problem
 from core.orchestration.evaluate_target_model import model_attempts_answer
 
 
@@ -12,7 +12,7 @@ def call_engineer(subject, topic, seed_prompt, config):
         subject=subject,
         topic=topic,
         provider=config["provider"],
-        model_name=config["model_name"]
+        model_name=config["model_name"],
     )
     return result
 
@@ -25,7 +25,7 @@ def call_checker(core_problem, config, mode="initial"):
         core_problem,
         mode=mode,
         provider=config["provider"],
-        model_name=config["model_name"]
+        model_name=config["model_name"],
     )
     return result
 
@@ -34,8 +34,5 @@ def call_target_model(problem_text, config):
     """
     Wrapper for target model call. Returns answer + token usage.
     """
-    result = model_attempts_answer(
-        problem_text,
-        model_config=config
-    )
+    result = model_attempts_answer(problem_text, model_config=config)
     return result

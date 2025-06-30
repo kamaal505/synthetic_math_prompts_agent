@@ -1,15 +1,7 @@
 num_problems: 10
+max_workers: 10
 
-taxonomy:
-  Complex Analysis:
-    - Contour Integration
-    - Analytic Functions
-  Algebra:
-    - Galois Theory
-    - Polynomial Rings
-  Linear Algebra:
-    - Spectral Theorem
-    - Matrix Similarity
+taxonomy: "taxonomy/sample_math_taxonomy.json"
 
 output_dir: "./results"
 default_batch_id: "batch_01"
