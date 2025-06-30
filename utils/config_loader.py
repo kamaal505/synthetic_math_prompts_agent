@@ -1,20 +1,22 @@
-import json
 from pathlib import Path
+from typing import Any, Dict
 
-import yaml
+from utils.config_manager import get_config_manager
 
 
-def load_config(config_path: Path) -> dict:
-    with open(config_path, "r", encoding="utf-8") as f:
-        config = yaml.safe_load(f)
+def load_config(config_path: Path) -> Dict[str, Any]:
+    """
+    Load configuration from a YAML file using the centralized ConfigManager.
 
-    # Check if taxonomy is a JSON file path
-    if isinstance(config.get("taxonomy"), str) and config["taxonomy"].endswith(".json"):
-        taxonomy_path = Path(config["taxonomy"])
-        if not taxonomy_path.exists():
-            raise FileNotFoundError(f"Taxonomy file not found: {taxonomy_path}")
+    This function is now a wrapper around the ConfigManager to maintain
+    backward compatibility while providing centralized configuration management.
 
-        with open(taxonomy_path, "r", encoding="utf-8") as f:
-            config["taxonomy"] = json.load(f)
+    Args:
+        config_path: Path to the configuration YAML file
 
-    return config
+    Returns:
+        Dictionary containing the loaded configuration
+    """
+    config_manager = get_config_manager()
+    config_manager.load_config(config_path)
+    return config_manager.get_all()
