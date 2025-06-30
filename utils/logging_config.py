@@ -41,7 +41,7 @@ def setup_logger(
 
     # Create formatter
     formatter = logging.Formatter(
-        fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        fmt="%(asctime)s - %(levelname)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
@@ -84,7 +84,11 @@ def get_logger(name: str = None) -> logging.Logger:
     return default_logger
 
 
-def log_error(message: str, exception: Exception = None, logger: logging.Logger = None):
+def log_error(
+    message: str,
+    exception: Exception = None,
+    logger: logging.Logger = None,
+):
     """
     Log an error message with optional exception details.
 
@@ -93,11 +97,13 @@ def log_error(message: str, exception: Exception = None, logger: logging.Logger 
         exception: Optional exception to include
         logger: Optional logger instance. If None, uses default logger.
     """
-    if logger is None:
-        logger = default_logger
+    logger = default_logger if logger is None else logger
 
     if exception:
-        logger.error(f"{message}: {str(exception)}", exc_info=True)
+        logger.error(
+            f"{message}: {str(exception)}",
+            exc_info=True,
+        )
     else:
         logger.error(message)
 
@@ -110,8 +116,7 @@ def log_warning(message: str, logger: logging.Logger = None):
         message: Warning message to log
         logger: Optional logger instance. If None, uses default logger.
     """
-    if logger is None:
-        logger = default_logger
+    logger = default_logger if logger is None else logger
 
     logger.warning(message)
 
@@ -124,8 +129,7 @@ def log_info(message: str, logger: logging.Logger = None):
         message: Info message to log
         logger: Optional logger instance. If None, uses default logger.
     """
-    if logger is None:
-        logger = default_logger
+    logger = default_logger if logger is None else logger
 
     logger.info(message)
 
@@ -138,7 +142,6 @@ def log_debug(message: str, logger: logging.Logger = None):
         message: Debug message to log
         logger: Optional logger instance. If None, uses default logger.
     """
-    if logger is None:
-        logger = default_logger
+    logger = default_logger if logger is None else logger
 
     logger.debug(message)
