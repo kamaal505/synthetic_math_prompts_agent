@@ -1,5 +1,14 @@
-.env
-create_init.py_files.py
-results/
+.DS_Store
+
+# Virtual Environment and Python Cache
+.venv
 __pycache__/
 *.pyc
+
+# Environments Configurations
+.env
+
+create_init.py_files.py
+results/
+
+
