@@ -111,7 +111,7 @@ def _generate_and_validate_prompt(config, cost_tracker):
             }
 
     except Exception as e:
-        log_error(f"🚨 Error in pipeline task", e)
+        log_error(f"🚨 Error in pipeline task", exception=e)
         return "error", {
             "error": str(e),
             "subject": subject,
@@ -205,7 +205,7 @@ def run_generation_pipeline(config):
                             discarded.append(data)
                     except Exception as e:
                         log_error(
-                            f"🚨 Future execution error in attempt {attempt_num}: {e}"
+                            f"🚨 Future execution error in attempt {attempt_num}", exception=e
                         )
                         discarded.append(
                             {"error": str(e), "attempt_number": attempt_num}

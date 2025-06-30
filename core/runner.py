@@ -15,5 +15,5 @@ def run_pipeline_from_config(config: dict) -> dict:
             },
         }
     except Exception as e:
-        log_error("🚨 Pipeline execution failed", e)
+        log_error("🚨 Pipeline execution failed", exception=e)
         raise PipelineError(f"Pipeline crashed: {e}", stage="execution")
