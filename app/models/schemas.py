@@ -25,6 +25,7 @@ class GenerationRequest(BaseModel):
     checker_model: ModelConfig
     target_model: ModelConfig
     taxonomy: Dict[str, List[str]]
+    use_search: bool = True
 
     class Config:
         schema_extra = {

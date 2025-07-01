@@ -101,13 +101,17 @@ def _generate_and_validate_prompt(config, cost_tracker):
                 try:
                     from core.search import score_similarity
                     similarity = score_similarity(core["problem"])
-                    core["similarity_score"] = similarity.get("similarity_score")
-                    core["top_matches"] = similarity.get("top_matches", [])
-                    log_info(f"🔍 Similarity score: {core['similarity_score']:.3f}")
+                    core["similar_problems"] = {
+                        "similarity_score": similarity.get("similarity_score"),
+                        "top_matches": similarity.get("top_matches", [])
+                    }
+                    log_info(f"🔍 Similarity score: {core['similar_problems']['similarity_score']:.3f}")
                 except Exception as e:
                     log_error("⚠️ Error scoring similarity", exception=e)
-                    core["similarity_score"] = None
-                    core["top_matches"] = []
+                    core["similar_problems"] = {
+                        "similarity_score": None,
+                        "top_matches": []
+                    }
 
             return "accepted", core
         else:

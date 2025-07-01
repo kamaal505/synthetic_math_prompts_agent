@@ -17,7 +17,8 @@ def run_pipeline(request: GenerationRequest):
         "engineer_model": request.engineer_model.dict(),
         "checker_model": request.checker_model.dict(),
         "target_model": request.target_model.dict(),
-        "taxonomy": request.taxonomy
+        "taxonomy": request.taxonomy,
+        "use_search": request.use_search
     }
     return run_pipeline_from_config(config)
 
@@ -61,7 +62,7 @@ async def run_pipeline_background(
                 hints_were_corrected=prompt.get("hints_were_corrected", False),
                 cost=Decimal('0.00'),  # No cost calculation as requested
                 problem_embedding=problem_embedding,
-                similar_problems={}
+                similar_problems=prompt.get("similar_problems", {})
             )
             create_problem(db, problem_data)
         
@@ -91,7 +92,7 @@ async def run_pipeline_background(
                 hints_were_corrected=prompt.get("hints_were_corrected", False),
                 cost=Decimal('0.00'),  # No cost calculation as requested
                 problem_embedding=problem_embedding,
-                similar_problems={}
+                similar_problems=prompt.get("similar_problems", {})
             )
             create_problem(db, problem_data)
         
@@ -128,7 +129,8 @@ def start_generation_with_database(
             "engineer_model": request.engineer_model.dict(),
             "checker_model": request.checker_model.dict(),
             "target_model": request.target_model.dict(),
-            "taxonomy": request.taxonomy
+            "taxonomy": request.taxonomy,
+            "use_search": request.use_search
         }
         
         # Start background task
