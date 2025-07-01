@@ -20,7 +20,7 @@ Respond with JSON in this format:
 """
 
 
-def score_with_llm(problem_text, retrieved_docs, model="gpt-4-1106-preview"):
+def score_with_llm(problem_text, retrieved_docs, model="gpt-4.1"):
     """
     Calls an LLM to evaluate how similar a synthetic math problem is
     to a list of real-world math questions (title + content).
