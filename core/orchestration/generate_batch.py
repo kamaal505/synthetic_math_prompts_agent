@@ -22,7 +22,6 @@ def _generate_and_validate_prompt(config, cost_tracker):
                 - "discarded": prompt was rejected or target model succeeded
                 - "error": an error occurred during generation
     """
-    # Log thread start with thread ID
     thread_id = threading.current_thread().ident
     log_info(f"🧵 Thread {thread_id} starting task processing")
 
@@ -30,19 +29,13 @@ def _generate_and_validate_prompt(config, cost_tracker):
     subject = choice(list(taxonomy.keys())) if taxonomy else config.get("subject")
     topic = choice(taxonomy[subject]) if taxonomy else config.get("topic")
 
-    get_seed_prompt = None
-    if config.get("use_search", False):
-        from search.web_search import get_seed_prompt
-
-    seed_prompt = get_seed_prompt(subject, topic) if get_seed_prompt else None
-
     engineer_cfg = config["engineer_model"]
     checker_cfg = config["checker_model"]
     target_cfg = config["target_model"]
 
     try:
         # Step 1: Engineer
-        engineer_result = call_engineer(subject, topic, seed_prompt, engineer_cfg)
+        engineer_result = call_engineer(subject, topic, None, engineer_cfg)
         cost_tracker.log(
             engineer_cfg,
             engineer_result["tokens_prompt"],
@@ -102,6 +95,20 @@ def _generate_and_validate_prompt(config, cost_tracker):
 
         if not final_check.get("valid", False):
             log_info("🧠 Target model failed — Accepted!")
+
+            # Step 5: Similarity Scoring (optional)
+            if config.get("use_search", False):
+                try:
+                    from core.search import score_similarity
+                    similarity = score_similarity(core["problem"])
+                    core["similarity_score"] = similarity.get("similarity_score")
+                    core["top_matches"] = similarity.get("top_matches", [])
+                    log_info(f"🔍 Similarity score: {core['similarity_score']:.3f}")
+                except Exception as e:
+                    log_error("⚠️ Error scoring similarity", exception=e)
+                    core["similarity_score"] = None
+                    core["top_matches"] = []
+
             return "accepted", core
         else:
             log_info("🟡 Model answered correctly — Discarded.")
@@ -116,7 +123,6 @@ def _generate_and_validate_prompt(config, cost_tracker):
             "error": str(e),
             "subject": subject,
             "topic": topic,
-            "seed_prompt": seed_prompt,
         }
 
 
@@ -145,24 +151,17 @@ def run_generation_pipeline(config):
     assert_valid_model_config("checker", checker_cfg)
     assert_valid_model_config("target", target_cfg)
 
-    # Get number of workers from config, default to 10
     max_workers = config.get("max_workers", 10)
-
-    # Log parallel execution start with worker count
     log_info(f"🚀 Starting parallel execution with {max_workers} worker threads")
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        # Submit initial batch of tasks
         futures = []
 
         while approved_count < target_total:
-            # Calculate how many more attempts we need to submit
-            # We want to keep a reasonable number of futures in flight
             batch_size = min(
                 max_workers * 2, target_total - approved_count + len(discarded)
             )
 
-            # Submit new tasks if we need more futures
             while len(futures) < batch_size and (approved_count < target_total):
                 attempt_counter += 1
                 future = executor.submit(
@@ -170,27 +169,22 @@ def run_generation_pipeline(config):
                 )
                 futures.append((future, attempt_counter))
 
-            # Process completed futures
             if futures:
-                # Wait for at least one future to complete
                 completed_futures = []
                 for future, attempt_num in futures:
                     if future.done():
                         completed_futures.append((future, attempt_num))
 
-                # If no futures are done yet, wait for the first one
                 if not completed_futures:
                     done_futures = concurrent.futures.as_completed(
                         [f[0] for f in futures], timeout=None
                     )
                     first_done = next(done_futures)
-                    # Find the corresponding attempt number
                     for future, attempt_num in futures:
                         if future == first_done:
                             completed_futures.append((future, attempt_num))
                             break
 
-                # Process all completed futures
                 for future, attempt_num in completed_futures:
                     try:
                         result_type, data = future.result()
@@ -201,7 +195,7 @@ def run_generation_pipeline(config):
                         if result_type == "accepted":
                             accepted.append(data)
                             approved_count += 1
-                        else:  # "discarded" or "error"
+                        else:
                             discarded.append(data)
                     except Exception as e:
                         log_error(
@@ -211,7 +205,6 @@ def run_generation_pipeline(config):
                             {"error": str(e), "attempt_number": attempt_num}
                         )
 
-                    # Remove completed future from the list
                     futures.remove((future, attempt_num))
 
     return accepted, discarded, cost_tracker
