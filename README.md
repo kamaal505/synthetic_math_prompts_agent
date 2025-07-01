@@ -1,194 +1,216 @@
-# 🧠 Synthetic Prompt Agent
+# Synthetic Math Prompts Agent - Enhanced FastAPI System
 
-A modular framework for generating, validating, and filtering high-quality synthetic math prompts to stress-test LLMs. This system orchestrates multiple LLMs (e.g., OpenAI, Gemini, DeepSeek) to produce mastery-level questions with hints, verify their correctness, and assess whether a target model fails to solve them correctly.
+A comprehensive FastAPI-based system for generating, validating, and managing synthetic math problems using a multi-stage AI pipeline.
 
----
+## Features
 
-## 🚀 Key Features
+- **Multi-stage AI Pipeline**: Generator, Hinter, Checker, Target, and Judge agents
+- **RESTful API**: Complete CRUD operations for batches and problems
+- **Database Integration**: SQLite database with SQLAlchemy ORM
+- **Background Processing**: Asynchronous problem generation
+- **Real-time Status Tracking**: Monitor generation progress
+- **Comprehensive Filtering**: Filter problems by batch, status, and more
+- **Cost Tracking**: Track generation costs (optional)
+- **Similarity Detection**: Prevent duplicate problems (optional)
 
-* **Multi-LLM Orchestration**: Separate roles for *engineer*, *checker*, and *target* models.
-* **Strict Output Validation**: Ensures correctness and format adherence via semantic and structural checks.
-* **Model Breaking Logic**: Accepts only those valid problems that the target model answers incorrectly.
-* **Hint Generation and Repair**: Automatically retries if hint generation fails.
-* **Cost Tracking**: Tracks and logs token usage per model.
-* **FastAPI Backend**: Production-ready API with strict Pydantic schemas.
-* **CLI Support**: Interactive testing and batch generation via terminal.
-* **Modular Architecture**: Clean separation of LLM logic, pipeline orchestration, and utilities.
-
----
-
-## 🗂 Project Structure
+## Architecture
 
 ```
-synthetic_prompt_agent/
-├── core/                  # Core logic for prompt generation, validation, evaluation
-│   ├── generate_prompt.py
-│   ├── validate_prompt.py
-│   ├── evaluate_target_model.py
-│   ├── llm/               # Model-specific dispatchers and cost trackers
-│   │   ├── llm_dispatch.py
-│   │   ├── openai_utils.py
-│   │   └── ...
-├── utils/                 # Utility functions
-│   ├── taxonomy.py
-│   ├── cost_tracker.py
-│   ├── validation.py
-│   └── ...
-├── app/                   # FastAPI backend
-│   ├── main.py
-│   ├── routes.py
-│   ├── schemas.py
-│   └── pipeline_service.py
-├── cli/                   # CLI interface
-│   ├── run_interactive.py
-│   └── ...
-├── save_results.py        # Handles saving valid, discarded, and cost logs
-├── generate_batch.py      # Main entrypoint for generating a batch of prompts
-├── requirements.txt
-├── README.md              # ← You're here
-└── ...
+synthetic_math_prompts_agent/
+├── app/
+│   ├── api/                    # API endpoints
+│   │   ├── batches.py         # Batch management
+│   │   ├── problems.py        # Problem management
+│   │   ├── generation.py      # Generation endpoints
+│   │   └── routes.py          # Main router
+│   ├── models/                # Database models
+│   │   ├── database.py        # Database configuration
+│   │   ├── models.py          # SQLAlchemy models
+│   │   └── schemas.py         # Pydantic schemas
+│   ├── services/              # Business logic
+│   │   ├── batch_service.py   # Batch operations
+│   │   ├── problem_service.py # Problem operations
+│   │   └── pipeline_service.py # Enhanced pipeline
+│   ├── config.py              # Configuration
+│   └── main.py                # FastAPI app
+├── core/                      # Core pipeline (unchanged)
+├── database/                  # Database files
+└── requirements.txt           # Dependencies
 ```
 
----
+## Installation
 
-## ⚙️ How It Works
+1. **Clone and setup virtual environment**:
+```bash
+cd synthetic_math_prompts_agent
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
 
-1. **Input**: A configuration specifying:
+2. **Install dependencies**:
+```bash
+pip install -r requirements.txt
+```
 
-   * Desired number of prompts
-   * Model configurations for engineer, checker, and target
-   * Optional `taxonomy` (subject/topic) for sampling
+3. **Set up environment variables**:
+Create a `.env` file in the root directory:
+```env
+OPENAI_KEY=your_openai_api_key
+GEMINI_KEY=your_gemini_api_key
+DEEPSEEK_KEY=your_deepseek_api_key
+DATABASE_URL=sqlite:///./database/math_agent.db
+```
 
-2. **Engineer Role**:
+4. **Run the application**:
+```bash
+uvicorn app.main:app --reload
+```
 
-   * Generates problem, answer, and list of hints
-   * Retries if hints are empty
+The API will be available at `http://localhost:8000`
 
-3. **Validation Stage**:
+## API Endpoints
 
-   * Checks format, correctness, and mathematical validity
-   * Ensures `hints` is a non-empty `List[str]`
+### Core Generation
+- `POST /api/generate` - Generate problems (original endpoint)
+- `POST /api/generation/` - Start generation with database storage
+- `GET /api/generation/status/{batch_id}` - Get generation status
 
-4. **Target Model Evaluation**:
+### Batch Management
+- `GET /api/batches/` - List all batches with statistics
+- `GET /api/batches/{batch_id}` - Get specific batch
+- `DELETE /api/batches/{batch_id}` - Delete batch
 
-   * Model attempts the problem
-   * Answer is compared semantically with ground truth
+### Problem Management
+- `GET /api/problems/` - List all problems (with filters)
+- `GET /api/problems/problem/{problem_id}` - Get specific problem
+- `GET /api/problems/batch/{batch_id}/problems` - Get problems by batch
 
-5. **Final Filtering**:
+### Utility
+- `GET /` - Root endpoint
+- `GET /health` - Health check
 
-   * Only prompts that are **valid** and **break the target model** are saved as `valid.json`
-   * Others go to `discarded.json`
+## Usage Examples
 
-6. **Cost Logging**:
-
-   * Token usage is logged per model and saved to `costs.json`
-
----
-
-## 🧪 Run a Batch from CLI
+### 1. Start Problem Generation
 
 ```bash
-python generate_batch.py \
-    --num_prompts 10 \
-    --engineer_model '{"provider": "gemini", "model": "gemini-2.5-pro-preview-03-25"}' \
-    --checker_model '{"provider": "deepseek", "model": "deepseek-reasoner"}' \
-    --target_model '{"provider": "openai", "model": "o3"}' \
-    --taxonomy taxonomy/math_taxonomy.json
+curl -X POST "http://localhost:8000/api/generation/" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "num_problems": 5,
+    "engineer_model": {
+      "provider": "gemini",
+      "model_name": "gemini-2.5-pro"
+    },
+    "checker_model": {
+      "provider": "openai",
+      "model_name": "o3-mini"
+    },
+    "target_model": {
+      "provider": "openai",
+      "model_name": "o1"
+    },
+    "taxonomy": {
+      "Algebra": ["Linear Equations", "Quadratic Functions"],
+      "Calculus": ["Derivatives", "Integration"]
+    }
+  }'
 ```
 
----
+### 2. Check Generation Status
 
-## 🌐 API Usage (FastAPI)
-
-### 🔗 POST `/generate`
-
-Generate a batch of prompts using your configuration.
-
-#### Request
-
-```json
-{
-  "num_prompts": 5,
-  "engineer_model": {
-    "provider": "gemini",
-    "model": "gemini-2.5-pro-preview-03-25"
-  },
-  "checker_model": {
-    "provider": "deepseek",
-    "model": "deepseek-reasoner"
-  },
-  "target_model": {
-    "provider": "openai",
-    "model": "o3"
-  },
-  "taxonomy": {
-    "Algebra": ["Polynomials", "Inequalities"]
-  }
-}
+```bash
+curl "http://localhost:8000/api/generation/status/1"
 ```
 
-#### Response
+### 3. List All Batches
 
-```json
-{
-  "run_id": "20250626_183721",
-  "num_accepted": 4,
-  "num_attempted": 5,
-  "valid_problems": [ ... ],
-  "discarded_problems": [ ... ]
-}
+```bash
+curl "http://localhost:8000/api/batches/"
 ```
 
----
+### 4. Get Problems by Status
 
-## 🧾 Output Files
-
-Each run produces:
-
-* `valid.json`: Fully validated, target-broken prompts
-* `discarded.json`: Invalid or solved by target
-* `costs.json`: Token usage and cost data (not exposed via API)
-
-Files are saved to `./output/<run_id>/`.
-
----
-
-## 🧠 Model Configuration
-
-Each model is passed explicitly as:
-
-```json
-{
-  "provider": "openai" | "gemini" | "deepseek",
-  "model": "o3" | "gemini-2.5-pro-preview-03-25" | ...
-}
+```bash
+curl "http://localhost:8000/api/problems/?status=valid"
 ```
 
-This design enforces transparency and allows local testing before deployment.
+### 5. Get Problems from Specific Batch
 
----
+```bash
+curl "http://localhost:8000/api/problems/batch/1/problems"
+```
 
-## 🧰 Developer Notes
+## Database Schema
 
-* Add new models by updating `llm_dispatch.py` and respective utility modules.
-* All token tracking is centralized via `CostTracker`.
-* Run-level logic should go through `generate_batch.py` or `pipeline_service.py`.
+### Batch Table
+- `id`: Primary key
+- `name`: Batch name
+- `taxonomy_json`: JSON taxonomy configuration
+- `pipeline`: JSON pipeline configuration
+- `num_problems`: Target number of valid problems
+- `batch_cost`: Total cost for the batch
+- `created_at`: Creation timestamp
+- `updated_at`: Last update timestamp
 
----
+### Problem Table
+- `id`: Primary key
+- `subject`: Math subject
+- `topic`: Specific topic
+- `question`: Problem text
+- `answer`: Solution
+- `hints`: JSON hints object
+- `rejection_reason`: Reason if discarded
+- `status`: 'discarded', 'solved', or 'valid'
+- `batch_id`: Foreign key to batch
+- `created_at`: Creation timestamp
+- `updated_at`: Last update timestamp
+- `problem_embedding`: Vector embedding (optional)
+- `similar_problems`: Similar problems data (optional)
+- `cost`: Individual problem cost
+- `target_model_answer`: Target model's answer
+- `hints_were_corrected`: Whether hints were corrected
 
-## ✅ TODO / Roadmap
+## Configuration
 
-* [ ] Database logging & search
-* [ ] `/progress/{run_id}` endpoint
-* [ ] Frontend dashboard (Django or React)
-* [ ] Test suite for all core modules
-* [ ] Web search & Google proof augmentation
+The system uses a centralized configuration in `app/config.py`:
 
----
+- **API Keys**: OpenAI, Gemini, DeepSeek
+- **Database**: SQLite by default, configurable via DATABASE_URL
+- **Similarity**: Threshold and embedding model settings
+- **App Settings**: Name, version, etc.
 
-##  Contributors
+## Development
 
-* Project Lead: **You**
-* Architected with: OpenAI, Gemini, DeepSeek APIs
+### Adding New Endpoints
 
----
+1. Create new router in `app/api/`
+2. Add business logic in `app/services/`
+3. Include router in `app/api/routes.py`
+
+### Database Migrations
+
+The system uses SQLAlchemy with automatic table creation. For production, consider using Alembic for migrations.
+
+### Testing
+
+Test the API using tools like Postman, curl, or the built-in FastAPI docs at `http://localhost:8000/docs`.
+
+## Notes
+
+- **Cost Calculation**: Disabled as requested
+- **Similarity Checks**: Disabled as requested
+- **Core Pipeline**: Unchanged - all existing functionality preserved
+- **Database**: SQLite for simplicity, easily changeable to PostgreSQL/MySQL
+
+## Troubleshooting
+
+1. **Import Errors**: Ensure virtual environment is activated
+2. **Database Errors**: Check database file permissions
+3. **API Key Errors**: Verify .env file configuration
+4. **Pipeline Errors**: Check core pipeline dependencies
+
+## License
+
+This project maintains the same license as the original synthetic math prompts agent.
+ 

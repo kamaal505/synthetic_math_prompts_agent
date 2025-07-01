@@ -9,6 +9,7 @@ def run_pipeline_from_config(config: dict) -> dict:
         return {
             "valid_prompts": valid,
             "discarded_prompts": discarded,
+            "total_cost": cost_tracker.get_total_cost(),
             "metadata": {
                 "total_attempted": len(valid) + len(discarded),
                 "total_accepted": len(valid),
