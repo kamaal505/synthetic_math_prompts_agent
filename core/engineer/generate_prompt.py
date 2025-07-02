@@ -47,7 +47,12 @@ def call_gemini(messages, model_name):
     model = genai.GenerativeModel(model_name=model_name)
     response = model.generate_content(prompt)
     parsed = safe_json_parse(response.text)
-    parsed.update({"tokens_prompt": 0, "tokens_completion": 0})
+    parsed.update({
+    "tokens_prompt": 0,
+    "tokens_completion": 0,
+    "raw_output": response.text,
+    "raw_prompt": prompt
+    })
     return parsed
 
 
@@ -88,4 +93,7 @@ def generate_full_problem(seed, subject, topic, provider, model_name):
         "hints": data["hints"],
         "tokens_prompt": data.get("tokens_prompt", 0),
         "tokens_completion": data.get("tokens_completion", 0),
+        "raw_output": data.get("raw_output", ""),
+        "raw_prompt": data.get("raw_prompt", "")
     }
+
