@@ -12,8 +12,11 @@ MODEL_PRICING = {
     ("openai", "o3"): (0.01, 0.04),  # $10.00 / 1M input, $40.00 / 1M output
     ("openai", "o3-mini"): (0.0011, 0.0044),  # $1.10 / 1M input, $4.40 / 1M output
     ("openai", "o4-mini"): (0.0011, 0.0044),  # $1.10 / 1M input, $4.40 / 1M output
+
     # Gemini Models
-    ("gemini", "gemini-2.5-pro-preview-03-25"): (0.002, 0.002),  # Assumed rates
+    ("gemini", "gemini-2.5-pro-preview-03-25"): (0.0025, 0.015),  # Assumed rates
+    ("gemini", "gemini-2.5-pro"): (0.0025, 0.015),  # Just in case both appear
+
     # DeepSeek Models
     ("deepseek", "deepseek-reasoner"): (0.0015, 0.0025),  # Assumed rates
 }
@@ -38,6 +41,14 @@ class CostTracker:
         key = (provider, model)
 
         input_rate, output_rate = MODEL_PRICING.get(key, (0.0, 0.0))
+
+        # Estimate missing tokens for Gemini
+        if provider == "gemini":
+            if output_tokens == 0 and isinstance(model_config.get("raw_output"), str):
+                output_tokens = len(model_config["raw_output"]) // 4
+            if input_tokens == 0 and isinstance(model_config.get("raw_prompt"), str):
+                input_tokens = len(model_config["raw_prompt"]) // 4
+
         input_cost = (input_tokens / 1000) * input_rate
         output_cost = (output_tokens / 1000) * output_rate
         total_cost = input_cost + output_cost

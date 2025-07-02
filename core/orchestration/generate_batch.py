@@ -22,6 +22,7 @@ def _generate_and_validate_prompt(config, cost_tracker):
                 - "discarded": prompt was rejected or target model succeeded
                 - "error": an error occurred during generation
     """
+
     thread_id = threading.current_thread().ident
     log_info(f"🧵 Thread {thread_id} starting task processing")
 
@@ -37,7 +38,11 @@ def _generate_and_validate_prompt(config, cost_tracker):
         # Step 1: Engineer
         engineer_result = call_engineer(subject, topic, None, engineer_cfg)
         cost_tracker.log(
-            engineer_cfg,
+            {
+                **engineer_cfg,
+                "raw_output": engineer_result.get("raw_output", ""),
+                "raw_prompt": engineer_result.get("raw_prompt", "")
+            },
             engineer_result["tokens_prompt"],
             engineer_result["tokens_completion"],
         )
@@ -52,7 +57,11 @@ def _generate_and_validate_prompt(config, cost_tracker):
         # Step 2: Checker validation
         checker_result = call_checker(core, checker_cfg, mode="initial")
         cost_tracker.log(
-            checker_cfg,
+            {
+                **checker_cfg,
+                "raw_output": checker_result.get("raw_output", ""),
+                "raw_prompt": checker_result.get("raw_prompt", "")
+            },
             checker_result["tokens_prompt"],
             checker_result["tokens_completion"],
         )
@@ -81,7 +90,11 @@ def _generate_and_validate_prompt(config, cost_tracker):
         # Step 3: Target model attempts
         target_result = call_target_model(core["problem"], target_cfg)
         cost_tracker.log(
-            target_cfg,
+            {
+                **target_cfg,
+                "raw_output": target_result.get("raw_output", ""),
+                "raw_prompt": target_result.get("raw_prompt", "")
+            },
             target_result["tokens_prompt"],
             target_result["tokens_completion"],
         )
@@ -90,7 +103,13 @@ def _generate_and_validate_prompt(config, cost_tracker):
         # Step 4: Checker judges model's answer
         final_check = call_checker(core, checker_cfg, mode="equivalence_check")
         cost_tracker.log(
-            checker_cfg, final_check["tokens_prompt"], final_check["tokens_completion"]
+            {
+                **checker_cfg,
+                "raw_output": final_check.get("raw_output", ""),
+                "raw_prompt": final_check.get("raw_prompt", "")
+            },
+            final_check["tokens_prompt"],
+            final_check["tokens_completion"]
         )
 
         if not final_check.get("valid", False):
@@ -106,11 +125,14 @@ def _generate_and_validate_prompt(config, cost_tracker):
                         "top_matches": similarity.get("top_matches", [])
                     }
                     cost_tracker.log(
-                        {"provider": "openai", "model_name": "gpt-4.1"},
+                        {
+                            "provider": "openai",
+                            "model_name": "gpt-4.1",
+                            "raw_output": similarity.get("raw_output", "")
+                        },
                         similarity.get("tokens_prompt", 0),
                         similarity.get("tokens_completion", 0),
                     )
-
                     log_info(f"🔍 Similarity score: {core['similar_problems']['similarity_score']:.3f}")
                 except Exception as e:
                     log_error("⚠️ Error scoring similarity", exception=e)
@@ -137,14 +159,6 @@ def _generate_and_validate_prompt(config, cost_tracker):
 
 
 def run_generation_pipeline(config):
-    """
-    Runs the full synthetic prompt generation pipeline with parallel execution and tracks cost.
-
-    Returns:
-        accepted: List of approved problems
-        discarded: List of rejected or failed problems
-        cost_tracker: CostTracker instance with cost breakdown
-    """
     accepted = []
     discarded = []
     cost_tracker = CostTracker()

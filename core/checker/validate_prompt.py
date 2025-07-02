@@ -48,7 +48,12 @@ def call_gemini(messages, model_name):
     model = genai.GenerativeModel(model_name=model_name)
     response = model.generate_content(prompt)
     parsed = safe_json_parse(response.text)
-    parsed.update({"tokens_prompt": 0, "tokens_completion": 0})
+    parsed.update({
+        "tokens_prompt": 0,
+        "tokens_completion": 0,
+        "raw_output": response.text,
+        "raw_prompt": prompt
+        })
     return parsed
 
 
@@ -78,8 +83,14 @@ def validate_problem(problem_data: dict, mode, provider, model_name):
     ]
 
     if provider == "openai":
-        return call_openai(messages, model_name)
+        result = call_openai(messages, model_name)
     elif provider == "gemini":
-        return call_gemini(messages, model_name)
+        result = call_gemini(messages, model_name)
     else:
         raise ModelError(f"Unsupported checker provider: {provider}", provider=provider)
+
+    return {
+        **result,
+        "raw_output": result.get("raw_output", ""),
+        "raw_prompt": result.get("raw_prompt", "")
+    }
