@@ -105,6 +105,12 @@ def _generate_and_validate_prompt(config, cost_tracker):
                         "similarity_score": similarity.get("similarity_score"),
                         "top_matches": similarity.get("top_matches", [])
                     }
+                    cost_tracker.log(
+                        {"provider": "openai", "model_name": "gpt-4.1"},
+                        similarity.get("tokens_prompt", 0),
+                        similarity.get("tokens_completion", 0),
+                    )
+
                     log_info(f"🔍 Similarity score: {core['similar_problems']['similarity_score']:.3f}")
                 except Exception as e:
                     log_error("⚠️ Error scoring similarity", exception=e)

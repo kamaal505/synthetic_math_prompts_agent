@@ -24,6 +24,7 @@ def score_with_llm(problem_text, retrieved_docs, model="gpt-4.1"):
     """
     Calls an LLM to evaluate how similar a synthetic math problem is
     to a list of real-world math questions (title + content).
+    Returns both similarity data and token usage.
     """
     payload = {
         "problem": problem_text,
@@ -36,5 +37,7 @@ def score_with_llm(problem_text, retrieved_docs, model="gpt-4.1"):
     parsed = safe_json_parse(response["output"])
     return {
         "similarity_score": parsed.get("similarity_score", 0.0),
-        "top_matches": parsed.get("matches", [])
+        "top_matches": parsed.get("matches", []),
+        "tokens_prompt": response.get("tokens_prompt", 0),
+        "tokens_completion": response.get("tokens_completion", 0)
     }
