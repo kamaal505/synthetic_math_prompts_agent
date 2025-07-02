@@ -6,6 +6,7 @@ from core.llm.llm_dispatch import call_checker, call_engineer, call_target_model
 from utils.costs import CostTracker
 from utils.logging_config import log_error, log_info
 from utils.validation import assert_valid_model_config
+from utils.cost_estimation import safe_log_cost
 
 
 def _generate_and_validate_prompt(config, cost_tracker):
@@ -37,14 +38,13 @@ def _generate_and_validate_prompt(config, cost_tracker):
     try:
         # Step 1: Engineer
         engineer_result = call_engineer(subject, topic, None, engineer_cfg)
-        cost_tracker.log(
-            {
-                **engineer_cfg,
-                "raw_output": engineer_result.get("raw_output", ""),
-                "raw_prompt": engineer_result.get("raw_prompt", "")
-            },
-            engineer_result["tokens_prompt"],
-            engineer_result["tokens_completion"],
+        safe_log_cost(
+            cost_tracker,
+            engineer_cfg,
+            engineer_result.get("tokens_prompt", 0),
+            engineer_result.get("tokens_completion", 0),
+            raw_output=engineer_result.get("raw_output", ""),
+            raw_prompt=engineer_result.get("raw_prompt", "")
         )
         core = {
             "subject": subject,
@@ -56,14 +56,13 @@ def _generate_and_validate_prompt(config, cost_tracker):
 
         # Step 2: Checker validation
         checker_result = call_checker(core, checker_cfg, mode="initial")
-        cost_tracker.log(
-            {
-                **checker_cfg,
-                "raw_output": checker_result.get("raw_output", ""),
-                "raw_prompt": checker_result.get("raw_prompt", "")
-            },
-            checker_result["tokens_prompt"],
-            checker_result["tokens_completion"],
+        safe_log_cost(
+            cost_tracker,
+            checker_cfg,
+            checker_result.get("tokens_prompt", 0),
+            checker_result.get("tokens_completion", 0),
+            raw_output=checker_result.get("raw_output", ""),
+            raw_prompt=checker_result.get("raw_prompt", "")
         )
 
         corrected_hints = checker_result.get("corrected_hints")
@@ -89,27 +88,25 @@ def _generate_and_validate_prompt(config, cost_tracker):
 
         # Step 3: Target model attempts
         target_result = call_target_model(core["problem"], target_cfg)
-        cost_tracker.log(
-            {
-                **target_cfg,
-                "raw_output": target_result.get("raw_output", ""),
-                "raw_prompt": target_result.get("raw_prompt", "")
-            },
-            target_result["tokens_prompt"],
-            target_result["tokens_completion"],
+        safe_log_cost(
+            cost_tracker,
+            target_cfg,
+            target_result.get("tokens_prompt", 0),
+            target_result.get("tokens_completion", 0),
+            raw_output=target_result.get("raw_output", ""),
+            raw_prompt=target_result.get("raw_prompt", "")
         )
         core["target_model_answer"] = target_result["output"]
 
         # Step 4: Checker judges model's answer
         final_check = call_checker(core, checker_cfg, mode="equivalence_check")
-        cost_tracker.log(
-            {
-                **checker_cfg,
-                "raw_output": final_check.get("raw_output", ""),
-                "raw_prompt": final_check.get("raw_prompt", "")
-            },
-            final_check["tokens_prompt"],
-            final_check["tokens_completion"]
+        safe_log_cost(
+            cost_tracker,
+            checker_cfg,
+            final_check.get("tokens_prompt", 0),
+            final_check.get("tokens_completion", 0),
+            raw_output=final_check.get("raw_output", ""),
+            raw_prompt=final_check.get("raw_prompt", "")
         )
 
         if not final_check.get("valid", False):
@@ -124,14 +121,12 @@ def _generate_and_validate_prompt(config, cost_tracker):
                         "similarity_score": similarity.get("similarity_score"),
                         "top_matches": similarity.get("top_matches", [])
                     }
-                    cost_tracker.log(
-                        {
-                            "provider": "openai",
-                            "model_name": "gpt-4.1",
-                            "raw_output": similarity.get("raw_output", "")
-                        },
+                    safe_log_cost(
+                        cost_tracker,
+                        {"provider": "openai", "model_name": "gpt-4.1"},
                         similarity.get("tokens_prompt", 0),
                         similarity.get("tokens_completion", 0),
+                        raw_output=similarity.get("raw_output", "")
                     )
                     log_info(f"🔍 Similarity score: {core['similar_problems']['similarity_score']:.3f}")
                 except Exception as e:
@@ -159,6 +154,15 @@ def _generate_and_validate_prompt(config, cost_tracker):
 
 
 def run_generation_pipeline(config):
+    """
+    Run the generation pipeline in parallel until the desired number of accepted prompts is reached.
+
+    Args:
+        config: Configuration dictionary including num_problems, model configs, etc.
+
+    Returns:
+        tuple: (accepted_list, discarded_list, cost_tracker)
+    """
     accepted = []
     discarded = []
     cost_tracker = CostTracker()
