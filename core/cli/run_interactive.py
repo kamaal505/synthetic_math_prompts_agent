@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import time
 from pathlib import Path
@@ -7,14 +8,20 @@ from core.orchestration.generate_batch import run_generation_pipeline
 from utils.config_manager import get_config_manager
 from utils.exceptions import TaxonomyError
 from utils.helpers import format_duration, get_input
-from utils.logging_config import log_error, log_info
+from utils.logging_config import get_logger, setup_logger
 from utils.save_results import save_prompts
+
+# Initialize logging system with console output
+setup_logger(console_output=True, level="INFO")
+
+# Get logger for this module
+logger = get_logger(__name__)
 
 os.environ["GRPC_ENABLE_FORK_SUPPORT"] = "0"
 
 
 def main():
-    log_info("🧠 Synthetic Prompt Generator (Interactive Mode)")
+    logger.info("🧠 Synthetic Prompt Generator (Interactive Mode)")
 
     config_manager = get_config_manager()
     config_path = Path("config/settings.yaml")
@@ -22,7 +29,7 @@ def main():
 
     default_max_workers = max(1, int(os.cpu_count() * 0.9))
 
-    log_info("(Leave all fields blank to use defaults from config/settings.yaml)\n")
+    logger.info("(Leave all fields blank to use defaults from config/settings.yaml)\n")
     batch_id = get_input(
         "Enter batch ID", config_manager.get("default_batch_id", "batch_01")
     )
@@ -30,16 +37,19 @@ def main():
         "Number of problems", str(config_manager.get("num_problems", 10))
     )
     max_workers = get_input(
-        "Number of max workers", str(config_manager.get("max_workers", default_max_workers)),
+        "Number of max workers",
+        str(config_manager.get("max_workers", default_max_workers)),
     )
     engineer_provider = get_input(
         "Engineer provider", config_manager.get("engineer_model.provider", "gemini")
     )
     engineer_model = get_input(
-        "Engineer model name", config_manager.get("engineer_model.model_name", "gemini-2.5-pro"),
+        "Engineer model name",
+        config_manager.get("engineer_model.model_name", "gemini-2.5-pro"),
     )
     checker_provider = get_input(
-        "Checker/Validator provider", config_manager.get("checker_model.provider", "openai")
+        "Checker/Validator provider",
+        config_manager.get("checker_model.provider", "openai"),
     )
     checker_model = get_input(
         "Checker model name", config_manager.get("checker_model.model_name", "o3-mini")
@@ -50,34 +60,48 @@ def main():
     target_model = get_input(
         "Target model name", config_manager.get("target_model.model_name", "gpt-4.1")
     )
+    # Fix: Use the original taxonomy path from config file, not the loaded content
+    # The config manager loads the taxonomy content, but we need the path for the prompt
+    default_taxonomy_path = "taxonomy/enhanced_math_taxonomy.json"  # From settings.yaml
+
     taxonomy_path = get_input(
-        "Taxonomy file path", config_manager.get("taxonomy", "taxonomy/sample_math_taxonomy.json")
+        "Taxonomy file path",
+        default_taxonomy_path,
     )
     use_search = get_input("Enable search-based similarity scoring? (y/n)", "n")
-    config_manager.set("use_search", use_search.strip().lower() == "y")
+    config_manager.set("use_search", (use_search or "n").strip().lower() == "y")
 
     all_inputs = [
-        batch_id, num_problems, max_workers,
-        engineer_provider, engineer_model,
-        checker_provider, checker_model,
-        target_provider, target_model,
-        taxonomy_path
+        batch_id,
+        num_problems,
+        max_workers,
+        engineer_provider,
+        engineer_model,
+        checker_provider,
+        checker_model,
+        target_provider,
+        target_model,
+        taxonomy_path,
     ]
     if all(val is None for val in all_inputs):
-        log_info("📝 No overrides provided. Using YAML defaults only.")
+        logger.info("📝 No overrides provided. Using YAML defaults only.")
         batch_id = config_manager.get("default_batch_id", "batch_01")
         save_path = Path(config_manager.get("output_dir")) / batch_id
 
-        default_taxonomy_path = config_manager.get("taxonomy", "taxonomy/sample_math_taxonomy.json")
+        default_taxonomy_path = config_manager.get(
+            "taxonomy", "taxonomy/sample_math_taxonomy.json"
+        )
         if isinstance(default_taxonomy_path, str):
             try:
-                taxonomy_data = config_manager.load_taxonomy_file_cached(default_taxonomy_path)
+                taxonomy_data = config_manager.load_taxonomy_file_cached(
+                    default_taxonomy_path
+                )
                 config_manager.set("taxonomy", taxonomy_data)
             except (FileNotFoundError, TaxonomyError, json.JSONDecodeError) as e:
-                log_error(f"❌ Error: {e}")
+                logger.error(f"❌ Error: {e}")
                 return
     else:
-        log_info("🛠 Applying overrides...")
+        logger.info("🛠 Applying overrides...")
         if batch_id:
             config_manager.set("default_batch_id", batch_id)
         if num_problems:
@@ -97,27 +121,35 @@ def main():
         if target_model:
             config_manager.set("target_model.model_name", target_model)
 
-        final_taxonomy_path = taxonomy_path or config_manager.get("taxonomy", "taxonomy/sample_math_taxonomy.json")
+        final_taxonomy_path = taxonomy_path or config_manager.get(
+            "taxonomy", "taxonomy/sample_math_taxonomy.json"
+        )
         if isinstance(final_taxonomy_path, str):
             try:
-                taxonomy_data = config_manager.load_taxonomy_file_cached(final_taxonomy_path)
+                taxonomy_data = config_manager.load_taxonomy_file_cached(
+                    final_taxonomy_path
+                )
                 config_manager.set("taxonomy", taxonomy_data)
                 if taxonomy_path:
-                    log_info(f"✅ Loaded custom taxonomy from: {final_taxonomy_path}")
+                    logger.info(
+                        f"✅ Loaded custom taxonomy from: {final_taxonomy_path}"
+                    )
             except (FileNotFoundError, json.JSONDecodeError) as e:
-                log_error(f"Error: {e}")
+                logger.error(f"Error: {e}")
                 return
 
-        save_path = Path(config_manager.get("output_dir")) / config_manager.get("default_batch_id", "batch_01")
+        save_path = Path(config_manager.get("output_dir")) / config_manager.get(
+            "default_batch_id", "batch_01"
+        )
 
     config_manager.set("save_path", str(save_path))
 
     if config_manager.get("use_search", False):
-        log_info("🔍 Search similarity scoring is ENABLED.\n")
+        logger.info("🔍 Search similarity scoring is ENABLED.\n")
     else:
-        log_info("🚫 Search similarity scoring is DISABLED.\n")
+        logger.info("🚫 Search similarity scoring is DISABLED.\n")
 
-    log_info("🚀 Running generation pipeline...\n")
+    logger.info("🚀 Running generation pipeline...\n")
     start_time = time.monotonic()
 
     config = config_manager.get_all()
@@ -131,9 +163,9 @@ def main():
     num_problems = config_manager.get("num_problems", 10)
     avg_time_per_problem = total_duration / num_problems if num_problems > 0 else 0
 
-    log_info(f"⏱️  Execution completed in {format_duration(total_duration)}")
-    log_info(f"📊 Average time per problem: {format_duration(avg_time_per_problem)}")
-    log_info("🎉 Done.")
+    logger.info(f"⏱️  Execution completed in {format_duration(total_duration)}")
+    logger.info(f"📊 Average time per problem: {format_duration(avg_time_per_problem)}")
+    logger.info("🎉 Done.")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,9 @@
 from core.orchestration.generate_batch import run_generation_pipeline
 from utils.exceptions import PipelineError
-from utils.logging_config import log_error
+from utils.logging_config import get_logger
+
+# Get logger instance
+logger = get_logger(__name__)
 
 
 def run_pipeline_from_config(config: dict) -> dict:
@@ -16,5 +19,5 @@ def run_pipeline_from_config(config: dict) -> dict:
             },
         }
     except Exception as e:
-        log_error("🚨 Pipeline execution failed", exception=e)
+        logger.error("🚨 Pipeline execution failed: %s", str(e), exc_info=True)
         raise PipelineError(f"Pipeline crashed: {e}", stage="execution")
