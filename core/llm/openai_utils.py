@@ -4,7 +4,10 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from utils.exceptions import ModelError
-from utils.logging_config import log_debug
+from utils.logging_config import get_logger
+
+# Get logger instance
+logger = get_logger(__name__)
 
 load_dotenv()
 OPENAI_KEY = os.getenv("OPENAI_KEY")
@@ -53,7 +56,7 @@ def call_openai_model(
         output_text = response.choices[0].message.content.strip()
 
         if not output_text:
-            log_debug(f"[❗] Chat model '{model_name}' returned empty content.")
+            logger.debug(f"[❗] Chat model '{model_name}' returned empty content.")
             return None
 
         return {
@@ -72,9 +75,9 @@ def call_openai_model(
         tokens_prompt, tokens_completion = extract_tokens_from_response(response)
 
         if not hasattr(response, "output_text") or not response.output_text.strip():
-            log_debug(f"[❗] Responses model '{model_name}' returned no output_text.")
-            log_debug("🔍 Full response for debugging:")
-            log_debug(response.model_dump_json(indent=2))
+            logger.debug(f"[❗] Responses model '{model_name}' returned no output_text.")
+            logger.debug("🔍 Full response for debugging:")
+            logger.debug(response.model_dump_json(indent=2))
             return None
 
         return {
