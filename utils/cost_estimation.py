@@ -1,4 +1,8 @@
-from utils.logging_config import log_error
+from utils.logging_config import get_logger
+
+# Get logger instance
+logger = get_logger(__name__)
+
 
 def safe_log_cost(
     cost_tracker,
@@ -30,4 +34,4 @@ def safe_log_cost(
             tokens_completion or 0,
         )
     except Exception as e:
-        log_error("⚠️ Failed to log model cost", exception=e)
+        logger.error("⚠️ Failed to log model cost: %s", str(e), exc_info=True)

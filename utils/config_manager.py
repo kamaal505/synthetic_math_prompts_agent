@@ -6,23 +6,30 @@ loading and access, eliminating redundant file reads and providing a single sour
 for application configuration.
 """
 
+import os
 import threading
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 import yaml
+from dotenv import load_dotenv
 
 from utils.taxonomy import load_taxonomy_file
+
+# Load environment variables at module level
+load_dotenv()
 
 
 class ConfigManager:
     """
     Singleton configuration manager that provides centralized access to application configuration.
 
-    This class loads the base configuration from settings.yaml and provides methods to:
+    This class loads the base configuration from settings.yaml and environment variables,
+    providing methods to:
     - Get configuration values using dot notation (e.g., 'database.host')
     - Override settings programmatically
     - Cache loaded taxonomy files to avoid redundant I/O
+    - Access API keys and environment-specific settings
     """
 
     _instance: Optional["ConfigManager"] = None
@@ -42,7 +49,28 @@ class ConfigManager:
             self._config: Dict[str, Any] = {}
             self._taxonomy_cache: Dict[str, Dict[str, Any]] = {}
             self._config_lock = threading.Lock()
+            self._env_vars: Dict[str, Any] = {}
+            self._load_environment_variables()
             self._initialized = True
+
+    def _load_environment_variables(self) -> None:
+        """Load and cache environment variables."""
+        self._env_vars = {
+            # API Keys
+            "OPENAI_KEY": os.getenv("OPENAI_KEY"),
+            "GEMINI_KEY": os.getenv("GEMINI_KEY"),
+            "DEEPSEEK_KEY": os.getenv("DEEPSEEK_KEY"),
+            "TAVILY_API_KEY": os.getenv("TAVILY_API_KEY"),
+            # Database settings
+            "DATABASE_URL": os.getenv("DATABASE_URL"),
+            "DB_PATH": os.getenv("DB_PATH", "database/math_agent.db"),
+            # Application settings
+            "LOG_LEVEL": os.getenv("LOG_LEVEL", "INFO"),
+            "DEBUG": os.getenv("DEBUG", "false").lower() == "true",
+            # Performance settings
+            "DEFAULT_WORKERS": int(os.getenv("DEFAULT_WORKERS", "10")),
+            "MAX_RETRIES": int(os.getenv("MAX_RETRIES", "3")),
+        }
 
     def load_config(self, config_path: Path) -> None:
         """
@@ -74,6 +102,8 @@ class ConfigManager:
         """
         Get a configuration value using dot notation.
 
+        First checks the loaded configuration, then falls back to environment variables.
+
         Args:
             key: Configuration key in dot notation (e.g., 'database.host', 'num_problems')
             default: Default value to return if key is not found
@@ -87,10 +117,13 @@ class ConfigManager:
             10
             >>> config_manager.get('engineer_model.provider')
             'gemini'
+            >>> config_manager.get('OPENAI_KEY')
+            'sk-...'
             >>> config_manager.get('nonexistent.key', 'default_value')
             'default_value'
         """
         with self._config_lock:
+            # First try to get from loaded configuration
             keys = key.split(".")
             value = self._config
 
@@ -99,7 +132,45 @@ class ConfigManager:
                     value = value[k]
                 return value
             except (KeyError, TypeError):
+                # Fall back to environment variables for single keys
+                if len(keys) == 1 and key in self._env_vars:
+                    return self._env_vars[key]
                 return default
+
+    def get_api_key(self, provider: str) -> Optional[str]:
+        """
+        Get API key for a specific provider.
+
+        Args:
+            provider: The provider name ('openai', 'gemini', 'deepseek', 'tavily')
+
+        Returns:
+            The API key or None if not found
+        """
+        key_mapping = {
+            "openai": "OPENAI_KEY",
+            "gemini": "GEMINI_KEY",
+            "deepseek": "DEEPSEEK_KEY",
+            "tavily": "TAVILY_API_KEY",
+        }
+
+        env_key = key_mapping.get(provider.lower())
+        if env_key:
+            return self._env_vars.get(env_key)
+        return None
+
+    def get_model_config(self, agent_type: str) -> Dict[str, Any]:
+        """
+        Get model configuration for a specific agent type.
+
+        Args:
+            agent_type: The agent type ('engineer', 'checker', 'target')
+
+        Returns:
+            Dictionary containing provider and model_name
+        """
+        config_key = f"{agent_type}_model"
+        return self.get(config_key, {})
 
     def set(self, key: str, value: Any) -> None:
         """

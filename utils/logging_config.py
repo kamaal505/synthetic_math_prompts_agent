@@ -80,68 +80,15 @@ def get_logger(name: str = None) -> logging.Logger:
         Logger instance
     """
     if name:
-        return logging.getLogger(name)
+        # Create a new logger with the same configuration as the default logger
+        logger = logging.getLogger(name)
+
+        # If this logger doesn't have handlers, configure it like the default logger
+        if not logger.handlers:
+            # Copy the level and handlers from the default logger
+            logger.setLevel(default_logger.level)
+            for handler in default_logger.handlers:
+                logger.addHandler(handler)
+
+        return logger
     return default_logger
-
-
-def log_error(
-    message: str,
-    exception: Exception = None,
-    logger: logging.Logger = None,
-):
-    """
-    Log an error message with optional exception details.
-
-    Args:
-        message: Error message to log
-        exception: Optional exception to include
-        logger: Optional logger instance. If None, uses default logger.
-    """
-    logger = default_logger if logger is None else logger
-
-    if exception:
-        logger.error(
-            f"{message}: {str(exception)}",
-            exc_info=True,
-        )
-    else:
-        logger.error(message)
-
-
-def log_warning(message: str, logger: logging.Logger = None):
-    """
-    Log a warning message.
-
-    Args:
-        message: Warning message to log
-        logger: Optional logger instance. If None, uses default logger.
-    """
-    logger = default_logger if logger is None else logger
-
-    logger.warning(message)
-
-
-def log_info(message: str, logger: logging.Logger = None):
-    """
-    Log an info message.
-
-    Args:
-        message: Info message to log
-        logger: Optional logger instance. If None, uses default logger.
-    """
-    logger = default_logger if logger is None else logger
-
-    logger.info(message)
-
-
-def log_debug(message: str, logger: logging.Logger = None):
-    """
-    Log a debug message.
-
-    Args:
-        message: Debug message to log
-        logger: Optional logger instance. If None, uses default logger.
-    """
-    logger = default_logger if logger is None else logger
-
-    logger.debug(message)
