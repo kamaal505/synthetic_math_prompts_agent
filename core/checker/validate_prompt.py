@@ -1,16 +1,15 @@
 import json
-import os
+import logging
 from typing import Dict, List
 
-from dotenv import load_dotenv
-
 from core.llm.openai_utils import call_openai_model
+from utils.config_manager import get_config_manager
 from utils.exceptions import ModelError, ValidationError
 from utils.json_utils import safe_json_parse
 from utils.system_messages import CHECKER_MESSAGE
 
-load_dotenv()
-GEMINI_KEY = os.getenv("GEMINI_KEY")
+# Get logger for this module
+logger = logging.getLogger(__name__)
 
 
 def call_openai(messages: List[Dict[str, str]], model_name: str) -> dict:
@@ -43,17 +42,25 @@ def call_gemini(messages, model_name):
     """
     import google.generativeai as genai
 
-    genai.configure(api_key=GEMINI_KEY)
+    config_manager = get_config_manager()
+    gemini_key = config_manager.get_api_key("gemini")
+
+    if not gemini_key:
+        raise ModelError("Missing GEMINI_KEY", provider="gemini")
+
+    genai.configure(api_key=gemini_key)
     prompt = "\n".join([msg["content"] for msg in messages])
     model = genai.GenerativeModel(model_name=model_name)
     response = model.generate_content(prompt)
     parsed = safe_json_parse(response.text)
-    parsed.update({
-        "tokens_prompt": 0,
-        "tokens_completion": 0,
-        "raw_output": response.text,
-        "raw_prompt": prompt
-        })
+    parsed.update(
+        {
+            "tokens_prompt": 0,
+            "tokens_completion": 0,
+            "raw_output": response.text,
+            "raw_prompt": prompt,
+        }
+    )
     return parsed
 
 
@@ -92,5 +99,5 @@ def validate_problem(problem_data: dict, mode, provider, model_name):
     return {
         **result,
         "raw_output": result.get("raw_output", ""),
-        "raw_prompt": result.get("raw_prompt", "")
+        "raw_prompt": result.get("raw_prompt", ""),
     }

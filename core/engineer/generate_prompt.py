@@ -1,15 +1,13 @@
-import os
-
-from dotenv import load_dotenv
+import logging
 
 from core.llm.openai_utils import call_openai_model
+from utils.config_manager import get_config_manager
 from utils.exceptions import ModelError, ValidationError
 from utils.json_utils import safe_json_parse
-from utils.logging_config import log_info
 from utils.system_messages import ENGINEER_MESSAGE
 
-load_dotenv()
-GEMINI_KEY = os.getenv("GEMINI_KEY")
+# Get logger for this module
+logger = logging.getLogger(__name__)
 
 
 def call_openai(system_prompt, user_prompt, model_name):
@@ -42,17 +40,25 @@ def call_gemini(messages, model_name):
     """
     import google.generativeai as genai
 
-    genai.configure(api_key=GEMINI_KEY)
+    config_manager = get_config_manager()
+    gemini_key = config_manager.get_api_key("gemini")
+
+    if not gemini_key:
+        raise ModelError("Missing GEMINI_KEY", provider="gemini")
+
+    genai.configure(api_key=gemini_key)
     prompt = "\n".join([msg["content"] for msg in messages])
     model = genai.GenerativeModel(model_name=model_name)
     response = model.generate_content(prompt)
     parsed = safe_json_parse(response.text)
-    parsed.update({
-    "tokens_prompt": 0,
-    "tokens_completion": 0,
-    "raw_output": response.text,
-    "raw_prompt": prompt
-    })
+    parsed.update(
+        {
+            "tokens_prompt": 0,
+            "tokens_completion": 0,
+            "raw_output": response.text,
+            "raw_prompt": prompt,
+        }
+    )
     return parsed
 
 
@@ -84,7 +90,7 @@ def generate_full_problem(seed, subject, topic, provider, model_name):
     if not isinstance(data.get("hints"), dict) or len(data["hints"]) < 3:
         raise ValidationError("Invalid or too few hints returned.", field="hints")
 
-    log_info(f"✅ Problem generated with {len(data['hints'])} hints.")
+    logger.info(f"✅ Problem generated with {len(data['hints'])} hints.")
     return {
         "subject": data["subject"],
         "topic": data["topic"],
@@ -94,6 +100,5 @@ def generate_full_problem(seed, subject, topic, provider, model_name):
         "tokens_prompt": data.get("tokens_prompt", 0),
         "tokens_completion": data.get("tokens_completion", 0),
         "raw_output": data.get("raw_output", ""),
-        "raw_prompt": data.get("raw_prompt", "")
+        "raw_prompt": data.get("raw_prompt", ""),
     }
-
