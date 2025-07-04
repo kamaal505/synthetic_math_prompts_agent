@@ -203,7 +203,7 @@ class LLMClient:
         prompt: str,
         role: str,
         temperature: float,
-        effort: str = "medium",
+        effort: str = "high",
         **kwargs,
     ) -> Dict[str, Any]:
         """Call OpenAI models (both chat and reasoning models)."""

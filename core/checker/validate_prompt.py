@@ -17,7 +17,7 @@ def call_openai(messages: List[Dict[str, str]], model_name: str) -> dict:
     Calls OpenAI checker and returns parsed response with token usage.
     """
     prompt = "\n".join([m["content"].strip() for m in messages])
-    response = call_openai_model("checker", prompt, model_name, effort="low")
+    response = call_openai_model("checker", prompt, model_name, effort="high")
 
     if not response or "output" not in response:
         raise ModelError(

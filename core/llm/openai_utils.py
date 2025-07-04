@@ -37,7 +37,7 @@ def extract_tokens_from_response(response) -> tuple[int, int]:
 
 
 def call_openai_model(
-    role: str, prompt: str, model_name: str, effort: str = "medium"
+    role: str, prompt: str, model_name: str, effort: str = "high"
 ) -> dict:
     """
     Calls OpenAI model and returns output + token usage metadata.

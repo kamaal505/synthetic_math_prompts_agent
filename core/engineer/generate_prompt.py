@@ -15,7 +15,7 @@ def call_openai(system_prompt, user_prompt, model_name):
     Calls OpenAI model with response-style API and returns parsed output + token usage.
     """
     full_prompt = f"{system_prompt.strip()}\n\n{user_prompt.strip()}"
-    response = call_openai_model("engineer", full_prompt, model_name, effort="medium")
+    response = call_openai_model("engineer", full_prompt, model_name, effort="high")
 
     if not response or "output" not in response:
         raise ModelError(
