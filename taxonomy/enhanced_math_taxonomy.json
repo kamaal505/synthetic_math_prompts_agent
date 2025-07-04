@@ -1,0 +1,198 @@
+{
+  "Algebra (High School)": {
+    "Linear Equations and Inequalities": {
+      "level": "High School",
+      "description": "Solving linear equations and inequalities in one and multiple variables"
+    },
+    "Systems of Linear Equations": {
+      "level": "High School", 
+      "description": "Methods for solving systems of linear equations including substitution, elimination, and matrix methods"
+    },
+    "Quadratic Equations and Functions": {
+      "level": "High School",
+      "description": "Solving quadratic equations, analyzing quadratic functions, and applications"
+    },
+    "Polynomials: Operations, Factoring, and Graphs": {
+      "level": "High School",
+      "description": "Polynomial operations, factoring techniques, and graphing polynomial functions"
+    },
+    "Exponents, Radicals, and Logarithms": {
+      "level": "High School",
+      "description": "Properties of exponents, radical expressions, and logarithmic functions"
+    }
+  },
+  "Calculus": {
+    "Limits": {
+      "level": "Undergraduate",
+      "description": "Concept of limits, limit laws, and continuity"
+    },
+    "Differentiation Techniques": {
+      "level": "Undergraduate",
+      "description": "Rules of differentiation, chain rule, implicit differentiation, and related rates"
+    },
+    "Integration Techniques": {
+      "level": "Undergraduate",
+      "description": "Integration by substitution, parts, partial fractions, and trigonometric substitution"
+    },
+    "Multivariable Calculus": {
+      "level": "Undergraduate",
+      "description": "Partial derivatives, multiple integrals, vector calculus, and applications"
+    },
+    "Series": {
+      "level": "Undergraduate",
+      "description": "Infinite series, convergence tests, power series, and Taylor series"
+    }
+  },
+  "Linear Algebra": {
+    "Matrix Operations": {
+      "level": "Undergraduate",
+      "description": "Matrix arithmetic, determinants, and matrix inverses"
+    },
+    "Vector Spaces": {
+      "level": "Undergraduate",
+      "description": "Vector spaces, subspaces, linear independence, and basis"
+    },
+    "Eigenvalues and Eigenvectors": {
+      "level": "Undergraduate",
+      "description": "Computing eigenvalues and eigenvectors, diagonalization, and applications"
+    },
+    "Linear Transformations": {
+      "level": "Undergraduate",
+      "description": "Linear transformations, matrix representations, and change of basis"
+    }
+  },
+  "Number Theory": {
+    "Divisibility": {
+      "level": "Undergraduate",
+      "description": "Divisibility rules, greatest common divisor, and Euclidean algorithm"
+    },
+    "Prime Numbers": {
+      "level": "Undergraduate",
+      "description": "Prime factorization, distribution of primes, and primality testing"
+    },
+    "Modular Arithmetic": {
+      "level": "Undergraduate",
+      "description": "Congruences, modular arithmetic, and applications to cryptography"
+    },
+    "Diophantine Equations": {
+      "level": "Graduate",
+      "description": "Integer solutions to polynomial equations and Pell equations"
+    }
+  },
+  "Probability": {
+    "Probability Concepts": {
+      "level": "High School",
+      "description": "Basic probability, sample spaces, and probability rules"
+    },
+    "Discrete Distributions": {
+      "level": "Undergraduate",
+      "description": "Binomial, geometric, Poisson, and other discrete probability distributions"
+    },
+    "Continuous Distributions": {
+      "level": "Undergraduate",
+      "description": "Normal, exponential, uniform, and other continuous probability distributions"
+    },
+    "Central Limit Theorem": {
+      "level": "Undergraduate",
+      "description": "Central limit theorem, sampling distributions, and statistical inference"
+    },
+    "Markov Chains": {
+      "level": "Graduate",
+      "description": "Discrete-time Markov chains, transition matrices, and steady-state behavior"
+    }
+  },
+  "Real Analysis": {
+    "Sequences and Series": {
+      "level": "Graduate",
+      "description": "Convergence of sequences and series, tests for convergence"
+    },
+    "Continuity": {
+      "level": "Graduate",
+      "description": "Continuous functions, uniform continuity, and properties"
+    },
+    "Differentiability": {
+      "level": "Graduate",
+      "description": "Derivatives, mean value theorem, and applications"
+    },
+    "Riemann Integration": {
+      "level": "Graduate",
+      "description": "Riemann sums, fundamental theorem of calculus, and integration theory"
+    },
+    "Metric Spaces": {
+      "level": "Graduate",
+      "description": "Metric spaces, completeness, compactness, and connectedness"
+    }
+  },
+  "Abstract Algebra": {
+    "Group Theory": {
+      "level": "Graduate",
+      "description": "Groups, subgroups, homomorphisms, and group actions"
+    },
+    "Ring Theory": {
+      "level": "Graduate",
+      "description": "Rings, ideals, quotient rings, and polynomial rings"
+    },
+    "Field Theory": {
+      "level": "Graduate",
+      "description": "Field extensions, algebraic and transcendental elements"
+    },
+    "Galois Theory": {
+      "level": "Research",
+      "description": "Galois groups, solvability by radicals, and applications"
+    }
+  },
+  "Complex Analysis": {
+    "Analytic Functions": {
+      "level": "Graduate",
+      "description": "Complex differentiability, Cauchy-Riemann equations, and holomorphic functions"
+    },
+    "Contour Integration": {
+      "level": "Graduate",
+      "description": "Complex integration, Cauchy's theorem, and residue calculus"
+    },
+    "Conformal Mapping": {
+      "level": "Graduate",
+      "description": "Conformal transformations and applications to boundary value problems"
+    },
+    "Riemann Surfaces": {
+      "level": "Research",
+      "description": "Multi-valued functions, branch cuts, and Riemann surfaces"
+    }
+  },
+  "Differential Equations": {
+    "First Order ODEs": {
+      "level": "Undergraduate",
+      "description": "Separable equations, linear equations, and exact equations"
+    },
+    "Higher Order ODEs": {
+      "level": "Undergraduate",
+      "description": "Linear differential equations with constant coefficients"
+    },
+    "Systems of ODEs": {
+      "level": "Graduate",
+      "description": "Linear systems, phase portraits, and stability analysis"
+    },
+    "Partial Differential Equations": {
+      "level": "Graduate",
+      "description": "Heat equation, wave equation, and Laplace's equation"
+    }
+  },
+  "Combinatorics": {
+    "Counting Principles": {
+      "level": "High School",
+      "description": "Fundamental counting principle, permutations, and combinations"
+    },
+    "Graph Theory": {
+      "level": "Undergraduate",
+      "description": "Graph properties, trees, connectivity, and graph algorithms"
+    },
+    "Generating Functions": {
+      "level": "Graduate",
+      "description": "Ordinary and exponential generating functions for combinatorial problems"
+    },
+    "Extremal Combinatorics": {
+      "level": "Research",
+      "description": "Ramsey theory, extremal graph theory, and probabilistic methods"
+    }
+  }
+}
