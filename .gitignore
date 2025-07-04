@@ -4,11 +4,15 @@
 .venv
 __pycache__/
 *.pyc
+.pytest_cache/
 
 # Environments Configurations
 .env
 
-create_init.py_files.py
+# Test Results
 results/
 
+# Cached LLM Responses
+cache/
 
+create_init.py_files.py

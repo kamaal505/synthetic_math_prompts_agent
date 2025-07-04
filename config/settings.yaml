@@ -1,11 +1,25 @@
 num_problems: 10
 max_workers: 10
 
-taxonomy: "taxonomy/sample_math_taxonomy.json"
+taxonomy: "taxonomy/enhanced_math_taxonomy.json"
 
 output_dir: "./results"
 default_batch_id: "batch_01"
 use_search: false
+
+# Performance and Efficiency Enhancements (Phase 2)
+# LLM Response Caching Configuration
+llm_cache_enabled: true
+llm_cache_persistent: true
+llm_cache_dir: "cache/llm"
+
+# Enhanced Concurrent Processing Configuration
+use_enhanced_concurrent_processing: true
+adaptation_interval: 10
+target_success_rate: 0.3
+
+# Pre-filtering and Optimization
+enable_prefiltering: true
 
 engineer_model:
   provider: "gemini"

@@ -6,7 +6,10 @@ from pathlib import Path
 from core.orchestration.generate_batch import run_generation_pipeline
 from utils.config_manager import get_config_manager
 from utils.exceptions import TaxonomyError
-from utils.logging_config import log_error, log_info
+from utils.logging_config import get_logger
+
+# Get logger instance
+logger = get_logger(__name__)
 from utils.save_results import save_prompts
 
 os.environ["GRPC_ENABLE_FORK_SUPPORT"] = "0"
@@ -50,6 +53,23 @@ def main():
         "--taxonomy-path", type=str, help="Override taxonomy file path (JSON file)"
     )
 
+    # Performance and caching options (Phase 2 enhancements)
+    parser.add_argument(
+        "--disable-cache",
+        action="store_true",
+        help="Disable LLM response caching for this run",
+    )
+    parser.add_argument(
+        "--legacy-processing",
+        action="store_true",
+        help="Use legacy concurrent processing instead of enhanced adaptive version",
+    )
+    parser.add_argument(
+        "--disable-prefiltering",
+        action="store_true",
+        help="Disable pre-filtering heuristics",
+    )
+
     args = parser.parse_args()
 
     # Use ConfigManager for centralized configuration management
@@ -62,10 +82,10 @@ def main():
             taxonomy_data = config_manager.load_taxonomy_file_cached(args.taxonomy_path)
             config_manager.set("taxonomy", taxonomy_data)
         except (FileNotFoundError, TaxonomyError) as e:
-            log_error(f"❌ Error: {e}")
+            logger.error(f"❌ Error: {e}")
             return
         except json.JSONDecodeError as e:
-            log_error(
+            logger.error(
                 f"❌ Error: Invalid JSON in taxonomy file {args.taxonomy_path}: {e}"
             )
             return
@@ -91,6 +111,19 @@ def main():
     if args.target_model:
         config_manager.set("target_model.model_name", args.target_model)
 
+    # Apply Phase 2 enhancement overrides
+    if args.disable_cache:
+        config_manager.set("llm_cache_enabled", False)
+        logger.info("🚫 LLM caching disabled for this run")
+
+    if args.legacy_processing:
+        config_manager.set("use_enhanced_concurrent_processing", False)
+        logger.info("🔄 Using legacy concurrent processing")
+
+    if args.disable_prefiltering:
+        config_manager.set("enable_prefiltering", False)
+        logger.info("🚫 Pre-filtering disabled for this run")
+
     batch_id = config_manager.get("default_batch_id", "batch_01")
     save_path = Path(config_manager.get("output_dir")) / batch_id
     config_manager.set("save_path", str(save_path))
@@ -100,7 +133,7 @@ def main():
     valid, rejected = run_generation_pipeline(config)
     save_prompts(valid, rejected, save_path)
 
-    log_info(f"✅ {len(valid)} accepted | ❌ {len(rejected)} discarded")
+    logger.info(f"✅ {len(valid)} accepted | ❌ {len(rejected)} discarded")
 
 
 if __name__ == "__main__":

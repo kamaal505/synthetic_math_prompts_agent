@@ -1,224 +1,417 @@
-# 🧠 Synthetic Prompt Agent
+# 🧠 Synthetic Math Prompts Agent
 
-A multi-stage LLM framework for generating **mathematically valid**, **LLM-breaking** problems. This system automates the creation, validation, and evaluation of STEM prompts, and exposes both CLI and REST API interfaces. Each problem is checked for correctness, pedagogical quality, and ability to fool a target LLM.
+A sophisticated multi-stage LLM framework for generating **mathematically valid**, **LLM-breaking** problems. This system automates the creation, validation, and evaluation of STEM prompts using an agent-based architecture, with both CLI and REST API interfaces. Each problem is rigorously checked for correctness, pedagogical quality, and ability to challenge target LLMs.
 
 ---
 
 ## 🚧 Motivation
 
-High-quality automated prompt generation is hard. This agent focuses on:
+High-quality automated prompt generation is challenging. This agent focuses on:
 
-- 🔍 Engineering math problems with structured hints
-- ✅ Validating them for correctness and clarity
-- 🧪 Testing whether LLMs like O3, Gemini, or DeepSeek can solve them
-- 💥 Accepting only those problems that *break* the target model
+- 🔍 **Engineering** math problems with structured hints and adversarial techniques
+- ✅ **Validating** them for correctness, clarity, and pedagogical value
+- 🧪 **Testing** whether advanced LLMs like O3, Gemini, or DeepSeek can solve them
+- 💥 **Accepting** only those problems that successfully challenge the target model
+- 🎯 **Curriculum-based** generation with intelligent topic and difficulty selection
+- 🔄 **Performance optimization** with caching, concurrent processing, and adaptive threading
 
-Optionally, it also performs **search-based similarity scoring** to avoid duplicates.
+Optionally performs **search-based similarity scoring** to avoid duplicates and **CAS verification** for mathematical accuracy.
 
 ---
 
-## 🧱 Architecture Overview
+## 🏗️ Enhanced Architecture
+
+The system uses a modern **agent-based architecture** with centralized configuration management and performance monitoring:
 
 ```
-
 project-root/
-├── core/             # Core orchestration + generation logic
-├── utils/            # Shared utilities (costs, prompts, taxonomy, etc.)
-├── app/              # FastAPI backend for serving pipeline
-├── tests/            # Unit tests
-├── results/          # Output from each generation run
-├── .env              # API keys + config
-└── requirements.txt  # Python dependencies
-
-````
+├── core/                    # Agent-based generation pipeline
+│   ├── agents.py           # EngineerAgent, CheckerAgent, TargetAgent
+│   ├── llm/                # Centralized LLM client with caching
+│   ├── orchestration/      # Concurrent processing & batch generation
+│   ├── checker/            # CAS validation & prompt checking
+│   └── search/             # Similarity detection & search
+├── utils/                   # Enhanced utilities & performance monitoring
+│   ├── config_manager.py   # Singleton configuration management
+│   ├── performance_monitor.py # Concurrent processing metrics
+│   ├── curriculum_strategy.py # Intelligent topic selection
+│   └── taxonomy.py         # Enhanced nested taxonomy support
+├── app/                     # FastAPI backend with database
+├── tests/                   # Comprehensive unit & integration tests
+├── config/                  # YAML-based configuration
+└── taxonomy/               # Enhanced math taxonomy structure
+```
 
 ---
 
-## ⚙️ Components
+## ⚙️ Core Components
 
-### 🧠 `core/`
+### 🤖 Agent-Based Architecture
 
-Implements the three-agent loop:
+**Three specialized agents** handle different aspects of problem generation:
 
-| Role       | Purpose                                   |
-|------------|-------------------------------------------|
-| Engineer   | Generates math problem, answer, and hints |
-| Checker    | Validates content and final answer        |
-| Target     | Attempts to solve the problem             |
+| Agent | Purpose | Key Features |
+|-------|---------|--------------|
+| **EngineerAgent** | Generates math problems with hints | • Few-shot examples<br>• Adversarial techniques<br>• Curriculum-guided selection |
+| **CheckerAgent** | Validates content and answers | • CAS verification (SymPy)<br>• Pedagogical quality checks<br>• JSON structure validation |
+| **TargetAgent** | Attempts to solve problems | • Deterministic solving (temp=0)<br>• Consistent evaluation<br>• Performance tracking |
 
-Also includes:
+### 🧠 Enhanced LLM Integration
 
-- Batch orchestration
-- CLI interface
-- Token + cost tracking
-- Search augmentation (`Tavily + GPT reranker`)
+- **Centralized LLM Client** with unified API for OpenAI, Gemini, and DeepSeek
+- **Intelligent Caching** with temperature-aware cache keys
+- **Retry Logic** with exponential backoff and jitter for concurrent scenarios
+- **Performance Monitoring** with detailed metrics and thread tracking
+
+### 🎯 Curriculum Strategy
+
+- **Intelligent Topic Selection** based on coverage and difficulty balance
+- **Adaptive Difficulty Weighting** (High School: 30%, Undergraduate: 40%, Graduate: 25%, Research: 5%)
+- **Progressive Learning** with balanced topic coverage tracking
+- **Enhanced Taxonomy** with nested subject→topic→difficulty structure
+
+### ⚡ Performance Optimizations
+
+- **Concurrent Processing** with adaptive thread pool management
+- **Batch Generation** for improved API efficiency
+- **Pre-filtering Heuristics** to skip trivial problems
+- **Similarity Caching** with offline embedding index support
 
 📄 See: [`core/README.md`](core/README.md)
 
 ---
 
-### 🛠️ `utils/`
+### 🛠️ Enhanced Utilities
 
-Shared support logic:
+Advanced support infrastructure:
 
-- ✅ Config + taxonomy loading
-- 💰 Token accounting and cost estimation
-- 🧼 Robust JSON parsing from LLMs
-- 🚨 Centralized logging and error handling
-- 📎 Embedding + cosine similarity tools
+- ✅ **Singleton Configuration Management** with thread-safe access
+- 💰 **Advanced Cost Tracking** with provider-specific pricing
+- 🧼 **Robust JSON Parsing** with automated repair capabilities
+- 🚨 **Structured Logging** with contextual information
+- 📊 **Performance Monitoring** for concurrent operations
+- 🎓 **Curriculum Strategy** for intelligent problem selection
+- 📎 **Similarity Detection** with embedding-based comparison
 
 📄 See: [`utils/README.md`](utils/README.md)
 
 ---
 
-### 🚀 `app/` (FastAPI Backend)
+### 🚀 FastAPI Backend
 
-Exposes a REST API for:
+Production-ready REST API with:
 
-- Starting a new generation batch
-- Tracking batch status and cost
-- Querying generated problems
-- Managing metadata (target model, similarity, etc.)
-
-Database-backed via SQLAlchemy.
+- **Batch Management** with real-time status tracking
+- **Database Integration** using SQLAlchemy with proper schemas
+- **Concurrent Generation** with progress monitoring
+- **Cost Analytics** and usage statistics
+- **Problem Querying** with advanced filtering
+- **Health Monitoring** and system diagnostics
 
 📄 See: [`app/README.md`](app/README.md)
 
 ---
 
-### 🧪 `tests/`
+### 🧪 Comprehensive Testing
 
-Unit tests for:
+Extensive test coverage including:
 
-- Generation logic
-- Prompt validation
-- Cost tracking
-- API endpoints
+- **Unit Tests** for all core components
+- **Integration Tests** for end-to-end workflows
+- **Performance Tests** for concurrent processing
+- **Mock-based Testing** for external API interactions
+- **CAS Validation Tests** for mathematical accuracy
 
 📄 See: [`tests/README.md`](tests/README.md)
 
 ---
 
-## 🔐 API Keys
+## 🔐 Configuration & Setup
+
+### Environment Variables
 
 Create a `.env` file in the root directory:
 
 ```env
+# LLM API Keys
 OPENAI_KEY=your-openai-key
 GEMINI_KEY=your-gemini-key
 DEEPSEEK_KEY=your-fireworks-key
+
+# Search & External APIs
 TAVILY_API_KEY=your-tavily-key
+
+# Database
 DATABASE_URL=sqlite:///./database/math_agent.db
-````
+
+# Optional Performance Settings
+MAX_CONCURRENT_THREADS=8
+CACHE_ENABLED=true
+SIMILARITY_THRESHOLD=0.85
+```
+
+### Configuration Files
+
+The system uses YAML-based configuration in [`config/settings.yaml`](config/settings.yaml):
+
+```yaml
+# Model configurations for each agent
+models:
+  engineer:
+    provider: "gemini"
+    model_name: "gemini-2.5-pro"
+  checker:
+    provider: "openai"
+    model_name: "o3"
+  target:
+    provider: "openai"
+    model_name: "o3"
+
+# Performance settings
+performance:
+  max_workers: 8
+  batch_size: 5
+  enable_caching: true
+  
+# Curriculum settings
+curriculum:
+  difficulty_weights:
+    "High School": 0.3
+    "Undergraduate": 0.4
+    "Graduate": 0.25
+    "Research": 0.05
+```
 
 ---
 
 ## 🚀 Getting Started
 
-### 1. Install dependencies
+### 1. Install Dependencies
 
 ```bash
+# Using uv (recommended - faster installs)
+uv pip install -r requirements.txt
+
+# Alternative: using pip
 pip install -r requirements.txt
+```
+
+### 2. Initialize Database
+
+```bash
+# Create database tables
+python -c "from app.models.database import init_db; init_db()"
 ```
 
 ---
 
-### 2. Run CLI (Core Pipeline)
+### 3. CLI Usage (Enhanced)
 
-Run interactively:
+**Interactive Mode** with curriculum strategy:
 
 ```bash
 python core/cli/run_interactive.py
 ```
 
-Or use a YAML config:
+**Configuration-based** with YAML settings:
 
 ```bash
-python core/cli/interface.py --config configs/sample_config.yaml
+python core/cli/interface.py --config config/settings.yaml
 ```
 
-Results saved to:
+**Results Structure:**
 
 ```
 results/
-└── run_2025_07_03_14_15_00/
-    ├── valid.json
-    ├── discarded.json
-    └── costs.json
+└── run_2025_07_04_14_30_00/
+    ├── valid.json              # Accepted problems
+    ├── discarded.json          # Rejected problems
+    ├── costs.json              # Detailed cost breakdown
+    ├── performance_metrics.json # Concurrent processing stats
+    └── curriculum_stats.json   # Topic coverage analysis
 ```
 
 ---
 
-### 3. Run FastAPI Backend
+### 4. FastAPI Backend (Production-Ready)
+
+**Start the server:**
 
 ```bash
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Now visit: [http://localhost:8000/api/docs](http://localhost:8000/api/docs)
+**API Documentation:** [http://localhost:8000/api/docs](http://localhost:8000/api/docs)
 
-You can:
+**Key Endpoints:**
 
-* POST to `/api/generation/` to start batch generation
-* GET `/api/generation/status/{batch_id}` to track progress
-* Query prompts via `/api/problems/` or `/api/batches/`
+- `POST /api/generation/` → Start batch generation with curriculum
+- `GET /api/generation/status/{batch_id}` → Real-time progress tracking
+- `GET /api/problems/` → Query problems with advanced filters
+- `GET /api/batches/` → Batch analytics and statistics
+- `GET /api/health` → System health and performance metrics
 
 ---
 
-## 📦 Example: Start a Batch via API
+## 📦 Enhanced API Examples
+
+### Start Advanced Batch Generation
 
 ```bash
 curl -X POST http://localhost:8000/api/generation \
   -H "Content-Type: application/json" \
   -d '{
-    "num_problems": 5,
+    "num_problems": 10,
     "engineer_model": {"provider": "gemini", "model_name": "gemini-2.5-pro"},
     "checker_model": {"provider": "openai", "model_name": "o3"},
     "target_model": {"provider": "openai", "model_name": "o3"},
-    "taxonomy": { "Algebra": ["Quadratics"] },
-    "use_search": true
+    "taxonomy": {
+      "Linear Algebra": ["Matrix Operations", "Eigenvalues"],
+      "Calculus": ["Integration", "Differential Equations"]
+    },
+    "use_search": true,
+    "enable_cas_validation": true,
+    "max_workers": 8
   }'
+```
+
+### Query Problems with Filters
+
+```bash
+# Get problems by difficulty and subject
+curl "http://localhost:8000/api/problems/?difficulty=Undergraduate&subject=Linear%20Algebra&limit=5"
+
+# Get problems that failed target model
+curl "http://localhost:8000/api/problems/?target_success=false&order_by=created_at"
 ```
 
 ---
 
-## 📈 Output Structure
+## 📊 Enhanced Output Structure
 
-Each accepted prompt includes:
+Each generated problem includes comprehensive metadata:
 
-* ✅ Validated `problem`, `answer`, `hints`
-* 💥 Target model output
-* 📎 Similar problems (via Tavily + GPT)
-* 💰 Cost + token usage
-* 🧠 Embedding vector (for deduplication)
+```json
+{
+  "problem": "Find the eigenvalues of the matrix...",
+  "answer": "λ₁ = 3, λ₂ = -1",
+  "hints": ["Consider the characteristic polynomial", "Factor the quadratic"],
+  "metadata": {
+    "subject": "Linear Algebra",
+    "topic": "Eigenvalues",
+    "difficulty": "Undergraduate",
+    "generation_stats": {
+      "tokens_used": 1250,
+      "generation_time": 2.3,
+      "validation_time": 0.8,
+      "target_evaluation_time": 1.1
+    }
+  },
+  "validation": {
+    "checker_approved": true,
+    "cas_verified": true,
+    "pedagogical_score": 0.87
+  },
+  "target_evaluation": {
+    "model_output": "I need to find the characteristic polynomial...",
+    "success": false,
+    "confidence": 0.23
+  },
+  "similarity": {
+    "max_similarity": 0.34,
+    "similar_problems": [...],
+    "embedding": [0.1, -0.3, ...]
+  },
+  "costs": {
+    "total_cost": 0.0045,
+    "breakdown": {...}
+  }
+}
+```
 
 ---
 
-## 🧠 Acceptance Criteria
+## 🎯 Enhanced Acceptance Criteria
 
-A problem is accepted if:
+A problem is accepted if it meets **all** criteria:
 
-* It passes all validation checks
-* The target model fails to solve it
-* (Optional) Similarity is below threshold to known problems
+✅ **Validation Checks:**
+
+- Passes CheckerAgent quality assessment
+- (Optional) CAS verification confirms mathematical accuracy
+- Proper JSON structure and required fields
+- Pedagogical quality score above threshold
+
+✅ **Target Model Challenge:**
+
+- Target model fails to solve correctly
+- Model confidence below success threshold
+- Demonstrates genuine difficulty, not formatting issues
+
+✅ **Uniqueness (Optional):**
+
+- Similarity score below threshold vs. existing problems
+- Embedding-based deduplication
+- Topic diversity within curriculum strategy
 
 ---
 
-## 💬 Status Endpoints
+## 🔧 Advanced Features
 
-* `/api/` → Welcome message
-* `/api/health` → Health check
-* `/api/generation/status/{batch_id}` → Generation progress
-* `/api/problems/` → Query prompts with filters
-* `/api/batches/` → View batch summary + statistics
+### Agent-Based Architecture
+
+- **EngineerAgent:** Generates problems with few-shot examples and adversarial techniques
+- **CheckerAgent:** Validates with CAS verification and pedagogical scoring
+- **TargetAgent:** Deterministic evaluation with consistent temperature settings
+
+### Performance Optimizations
+
+- **Concurrent Processing:** Adaptive thread pool with performance monitoring
+- **Intelligent Caching:** Temperature-aware cache keys with hit rate tracking
+- **Batch Generation:** Improved API efficiency with parallel validation
+
+### Curriculum Strategy
+
+- **Balanced Topic Selection:** Ensures diverse coverage across subjects
+- **Adaptive Difficulty:** Dynamic weighting based on generation history
+- **Progressive Learning:** Tracks topic coverage for educational coherence
 
 ---
 
 ## 🧪 Running Tests
 
 ```bash
+# Run all tests
 pytest tests/
+
+# Run with coverage
+pytest tests/ --cov=. --cov-report=html
+
+# Run specific test categories
+pytest tests/unit_tests/          # Unit tests only
+pytest tests/test_performance_enhancements.py  # Performance tests
 ```
+
+---
+
+## 📊 Performance Monitoring
+
+The system includes comprehensive performance monitoring:
+
+- **Concurrent Processing Metrics:** Thread utilization, throughput, latency
+- **Cache Performance:** Hit rates, lookup times, memory usage
+- **Cost Analytics:** Token usage, API costs, efficiency metrics
+- **Generation Quality:** Success rates, validation scores, curriculum balance
+
+---
+
+## 💬 API Status Endpoints
+
+- `/api/` → Welcome message and system info
+- `/api/health` → Health check with performance metrics
+- `/api/generation/status/{batch_id}` → Real-time generation progress
+- `/api/problems/` → Query problems with advanced filtering
+- `/api/batches/` → Batch analytics and statistics
 
 ---
 
@@ -230,8 +423,15 @@ MIT License
 
 ## 🙌 Credits
 
-Mirza Kamaal
-Tom Mathews
-Mintesnote Bankisra
+**Core Development Team:**
 
-```
+- Mirza Kamaal
+- Tom Mathews
+- Mintesnote Bankisra
+
+**Enhanced with:**
+
+- Agent-based architecture design
+- Performance optimization strategies
+- Curriculum-based generation algorithms
+- Comprehensive testing framework

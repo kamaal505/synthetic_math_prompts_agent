@@ -27,6 +27,11 @@ tqdm>=4.66.2                     # (Optional) For progress bars in CLI
 json-repair>=0.25.0              # For automated JSON repair functionality
 
 # =============================
+# Mathematical Computing
+# =============================
+sympy>=1.12                      # Computer Algebra System for CAS verification
+
+# =============================
 # Pydantic (for schemas)
 # =============================
 pydantic>=2.7.1                  # Required by FastAPI and custom request/response models

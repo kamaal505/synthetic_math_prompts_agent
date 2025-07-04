@@ -3,7 +3,10 @@ import os
 from pathlib import Path
 
 from utils.costs import CostTracker
-from utils.logging_config import log_info  # Optional, for type hints
+from utils.logging_config import get_logger
+
+# Get logger instance
+logger = get_logger(__name__)
 
 
 def save_prompts(
@@ -25,9 +28,13 @@ def save_prompts(
         with open(save_dir / "costs.json", "w", encoding="utf-8") as f:
             json.dump(cost_tracker.as_dict(run_id=run_id), f, indent=2)
 
-    log_info(f"📁 Results saved to: {save_dir}")
-    log_info(f"✅ valid.json ({len(valid_list)} entries)")
-    log_info(f"❌ discarded.json ({len(discarded_list)} entries)")
+    logger.info(f"📁 Results saved to: {save_dir}")
+    logger.info(f"✅ valid.json ({len(valid_list)} entries)")
+    logger.info(f"❌ discarded.json ({len(discarded_list)} entries)")
     if cost_tracker:
-        log_info(f"💰 costs.json saved (Total: ${cost_tracker.get_total_cost():.6f})")
-        log_info(f"💰 costs.json saved (Total: ${cost_tracker.get_total_cost():.6f})")
+        logger.info(
+            f"💰 costs.json saved (Total: ${cost_tracker.get_total_cost():.6f})"
+        )
+        logger.info(
+            f"💰 costs.json saved (Total: ${cost_tracker.get_total_cost():.6f})"
+        )
