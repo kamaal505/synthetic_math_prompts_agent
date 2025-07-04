@@ -60,9 +60,8 @@ def main():
     target_model = get_input(
         "Target model name", config_manager.get("target_model.model_name", "gpt-4.1")
     )
-    # Fix: Use the original taxonomy path from config file, not the loaded content
-    # The config manager loads the taxonomy content, but we need the path for the prompt
-    default_taxonomy_path = "taxonomy/enhanced_math_taxonomy.json"  # From settings.yaml
+    # Use enhanced taxonomy by default
+    default_taxonomy_path = "taxonomy/enhanced_math_taxonomy.json"
 
     taxonomy_path = get_input(
         "Taxonomy file path",
@@ -89,7 +88,7 @@ def main():
         save_path = Path(config_manager.get("output_dir")) / batch_id
 
         default_taxonomy_path = config_manager.get(
-            "taxonomy", "taxonomy/sample_math_taxonomy.json"
+            "taxonomy", "taxonomy/enhanced_math_taxonomy.json"
         )
         if isinstance(default_taxonomy_path, str):
             try:
@@ -122,7 +121,7 @@ def main():
             config_manager.set("target_model.model_name", target_model)
 
         final_taxonomy_path = taxonomy_path or config_manager.get(
-            "taxonomy", "taxonomy/sample_math_taxonomy.json"
+            "taxonomy", "taxonomy/enhanced_math_taxonomy.json"
         )
         if isinstance(final_taxonomy_path, str):
             try:

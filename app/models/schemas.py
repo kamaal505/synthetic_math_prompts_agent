@@ -24,7 +24,7 @@ class GenerationRequest(BaseModel):
     engineer_model: ModelConfig
     checker_model: ModelConfig
     target_model: ModelConfig
-    taxonomy: Dict[str, List[str]]
+    taxonomy: Dict[str, Any]  # Supports both legacy List[str] and enhanced Dict[str, Dict] formats
     use_search: bool = True
 
     class Config:
@@ -44,8 +44,18 @@ class GenerationRequest(BaseModel):
                     "model_name": "o1"
                 },
                 "taxonomy": {
-                    "Algebra": ["Linear Equations", "Quadratic Functions"],
-                    "Complex Analysis": ["Contour Integration"]
+                    "Abstract Algebra": {
+                        "Group Theory": {
+                            "level": "Graduate",
+                            "description": "Groups, subgroups, homomorphisms, and group actions"
+                        }
+                    },
+                    "Calculus": {
+                        "Limits": {
+                            "level": "Undergraduate", 
+                            "description": "Concept of limits, limit laws, and continuity"
+                        }
+                    }
                 }
             }
         }
