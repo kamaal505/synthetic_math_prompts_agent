@@ -1,26 +1,42 @@
 import json
-import os
+import logging
 from typing import Dict
 
 import google.generativeai as genai
 import requests
-from dotenv import load_dotenv
 from openai import OpenAI
 
+from utils.config_manager import get_config_manager
 from utils.exceptions import APIError, ModelError
 
-load_dotenv()
+# Get logger for this module
+logger = logging.getLogger(__name__)
 
-# Load API keys
-OPENAI_KEY = os.getenv("OPENAI_KEY")
-GEMINI_KEY = os.getenv("GEMINI_KEY")
-DEEPSEEK_KEY = os.getenv("DEEPSEEK_KEY")
+# Initialize clients lazily
+_openai_client = None
+_gemini_configured = False
 
-# OpenAI client (for o1, o3, o4, etc.)
-openai_client = OpenAI(api_key=OPENAI_KEY)
 
-# Gemini config
-genai.configure(api_key=GEMINI_KEY)
+def _get_openai_client():
+    """Get OpenAI client with lazy initialization."""
+    global _openai_client
+    if _openai_client is None:
+        config_manager = get_config_manager()
+        openai_key = config_manager.get_api_key("openai")
+        if openai_key:
+            _openai_client = OpenAI(api_key=openai_key)
+    return _openai_client
+
+
+def _configure_gemini():
+    """Configure Gemini with lazy initialization."""
+    global _gemini_configured
+    if not _gemini_configured:
+        config_manager = get_config_manager()
+        gemini_key = config_manager.get_api_key("gemini")
+        if gemini_key:
+            genai.configure(api_key=gemini_key)
+            _gemini_configured = True
 
 
 def model_attempts_answer(problem: str, model_config: Dict) -> Dict:
@@ -53,17 +69,20 @@ def model_attempts_answer(problem: str, model_config: Dict) -> Dict:
         {"role": "user", "content": problem},
     ]
 
+    config_manager = get_config_manager()
+
     if provider == "openai":
-        if not OPENAI_KEY:
+        openai_client = _get_openai_client()
+        if not openai_client:
             raise ModelError("Missing OPENAI_KEY", provider="openai")
 
-        print(f"   📞 Calling OpenAI {model_name}...")
+        logger.info(f"Calling OpenAI {model_name}...")
         response = openai_client.chat.completions.create(
             model=model_name, messages=messages, temperature=1.0
         )
         choice = response.choices[0]
         usage = response.usage
-        print(f"   ✅ OpenAI {model_name} responded successfully")
+        logger.info(f"OpenAI {model_name} responded successfully")
         return {
             "output": choice.message.content.strip(),
             "tokens_prompt": usage.prompt_tokens,
@@ -71,12 +90,13 @@ def model_attempts_answer(problem: str, model_config: Dict) -> Dict:
         }
 
     elif provider == "deepseek":
-        if not DEEPSEEK_KEY:
+        deepseek_key = config_manager.get_api_key("deepseek")
+        if not deepseek_key:
             raise ModelError(
                 "Missing DEEPSEEK_KEY for Fireworks API", provider="deepseek"
             )
 
-        print(f"   📞 Calling DeepSeek {model_name}...")
+        logger.info(f"Calling DeepSeek {model_name}...")
         url = "https://api.fireworks.ai/inference/v1/chat/completions"
         payload = {
             "model": model_name,
@@ -91,7 +111,7 @@ def model_attempts_answer(problem: str, model_config: Dict) -> Dict:
         headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {DEEPSEEK_KEY}",
+            "Authorization": f"Bearer {deepseek_key}",
         }
         response = requests.post(url, headers=headers, data=json.dumps(payload))
         if response.status_code != 200:
@@ -104,7 +124,7 @@ def model_attempts_answer(problem: str, model_config: Dict) -> Dict:
         result = response.json()
         choice = result["choices"][0]["message"]["content"].strip()
         usage = result.get("usage", {})
-        print(f"   ✅ DeepSeek {model_name} responded successfully")
+        logger.info(f"DeepSeek {model_name} responded successfully")
         return {
             "output": choice,
             "tokens_prompt": usage.get("prompt_tokens", 0),
@@ -112,14 +132,16 @@ def model_attempts_answer(problem: str, model_config: Dict) -> Dict:
         }
 
     elif provider == "gemini":
-        if not GEMINI_KEY:
+        _configure_gemini()
+        gemini_key = config_manager.get_api_key("gemini")
+        if not gemini_key:
             raise ModelError("Missing GEMINI_KEY", provider="gemini")
 
-        print(f"   📞 Calling Gemini {model_name}...")
+        logger.info(f"Calling Gemini {model_name}...")
         model = genai.GenerativeModel(model_name=model_name)
         response = model.generate_content(problem)
         # Gemini doesn't expose usage reliably in current SDK
-        print(f"   ✅ Gemini {model_name} responded successfully")
+        logger.info(f"Gemini {model_name} responded successfully")
         return {
             "output": response.text.strip(),
             "tokens_prompt": 0,
