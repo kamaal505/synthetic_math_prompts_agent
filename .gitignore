@@ -8,7 +8,10 @@ __pycache__/
 # Environments Configurations
 .env
 
-create_init.py_files.py
+# Test Results
 results/
 
+# Cached LLM Responses
+cache/
 
+create_init.py_files.py
