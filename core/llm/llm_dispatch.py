@@ -9,6 +9,7 @@ import logging
 from typing import Any, Dict
 
 from core.agents import create_checker_agent, create_engineer_agent, create_target_agent
+from utils.config_manager import get_config_manager
 
 # Get logger for this module
 logger = logging.getLogger(__name__)
@@ -34,7 +35,10 @@ def call_engineer(
     Returns:
         Problem generation result with token usage
     """
-    logger.info(f"Calling engineer for {subject} - {topic} (level: {difficulty_level})")
+    # Update ConfigManager with the request's engineer model configuration
+    config_manager = get_config_manager()
+    config_manager.set("engineer_model.provider", config.get("provider", "openai"))
+    config_manager.set("engineer_model.model_name", config.get("model_name", "gpt-4"))
 
     engineer_agent = create_engineer_agent()
     result = engineer_agent.generate(
@@ -61,7 +65,10 @@ def call_checker(
     Returns:
         Validation result with token usage
     """
-    logger.info(f"Calling checker in {mode} mode")
+    # Update ConfigManager with the request's checker model configuration
+    config_manager = get_config_manager()
+    config_manager.set("checker_model.provider", config.get("provider", "openai"))
+    config_manager.set("checker_model.model_name", config.get("model_name", "gpt-4"))
 
     checker_agent = create_checker_agent()
     result = checker_agent.validate(problem_data=core_problem, mode=mode)
@@ -80,7 +87,10 @@ def call_target_model(problem_text: str, config: Dict[str, Any]) -> Dict[str, An
     Returns:
         Target model answer with token usage
     """
-    logger.info("Calling target model")
+    # Update ConfigManager with the request's target model configuration
+    config_manager = get_config_manager()
+    config_manager.set("target_model.provider", config.get("provider", "openai"))
+    config_manager.set("target_model.model_name", config.get("model_name", "gpt-4"))
 
     target_agent = create_target_agent()
     result = target_agent.solve(problem_text=problem_text)
