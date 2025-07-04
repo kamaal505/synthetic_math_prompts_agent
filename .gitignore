@@ -4,6 +4,7 @@
 .venv
 __pycache__/
 *.pyc
+.pytest_cache/
 
 # Environments Configurations
 .env
