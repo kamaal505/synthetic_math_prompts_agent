@@ -11,7 +11,6 @@ import time
 from unittest.mock import Mock, patch, MagicMock
 from concurrent.futures import ThreadPoolExecutor
 
-from core.llm.llm_cache import LLMCache, get_llm_cache, clear_llm_cache
 from core.llm.llm_client import LLMClient, get_llm_client
 from core.orchestration.generate_batch import (
     _generate_batch_problems,
@@ -21,117 +20,6 @@ from core.orchestration.generate_batch import (
 from core.orchestration.concurrent_processor import AdaptiveThreadPool, ConcurrentProcessor
 from utils.performance_monitor import PerformanceMonitor, get_performance_monitor, reset_performance_monitor
 from utils.costs import CostTracker
-
-
-class TestLLMCache:
-    """Test the LLM caching mechanism."""
-    
-    def setup_method(self):
-        """Set up test fixtures."""
-        self.cache = LLMCache(max_size=10, ttl_seconds=60)
-    
-    def test_cache_put_and_get(self):
-        """Test basic cache put and get operations."""
-        response = {
-            "output": "Test response",
-            "tokens_prompt": 10,
-            "tokens_completion": 20
-        }
-        
-        # Put response in cache
-        self.cache.put(
-            provider="openai",
-            model_name="gpt-4",
-            prompt="Test prompt",
-            temperature=0.7,
-            response=response
-        )
-        
-        # Get response from cache
-        cached_response = self.cache.get(
-            provider="openai",
-            model_name="gpt-4",
-            prompt="Test prompt",
-            temperature=0.7
-        )
-        
-        assert cached_response is not None
-        assert cached_response["output"] == "Test response"
-        assert cached_response["tokens_prompt"] == 10
-        assert cached_response["tokens_completion"] == 20
-    
-    def test_cache_miss(self):
-        """Test cache miss scenario."""
-        cached_response = self.cache.get(
-            provider="openai",
-            model_name="gpt-4",
-            prompt="Non-existent prompt",
-            temperature=0.7
-        )
-        
-        assert cached_response is None
-    
-    def test_cache_key_generation(self):
-        """Test that different parameters generate different cache keys."""
-        response1 = {"output": "Response 1"}
-        response2 = {"output": "Response 2"}
-        
-        # Same parameters should use same cache key
-        self.cache.put("openai", "gpt-4", "prompt", 0.7, response1)
-        cached = self.cache.get("openai", "gpt-4", "prompt", 0.7)
-        assert cached["output"] == "Response 1"
-        
-        # Different temperature should use different cache key
-        self.cache.put("openai", "gpt-4", "prompt", 0.8, response2)
-        cached1 = self.cache.get("openai", "gpt-4", "prompt", 0.7)
-        cached2 = self.cache.get("openai", "gpt-4", "prompt", 0.8)
-        
-        assert cached1["output"] == "Response 1"
-        assert cached2["output"] == "Response 2"
-    
-    def test_cache_thread_safety(self):
-        """Test that cache operations are thread-safe."""
-        results = []
-        
-        def cache_worker(worker_id):
-            response = {"output": f"Response {worker_id}"}
-            self.cache.put("openai", "gpt-4", f"prompt_{worker_id}", 0.7, response)
-            
-            cached = self.cache.get("openai", "gpt-4", f"prompt_{worker_id}", 0.7)
-            results.append(cached["output"])
-        
-        # Run multiple threads concurrently
-        threads = []
-        for i in range(10):
-            thread = threading.Thread(target=cache_worker, args=(i,))
-            threads.append(thread)
-            thread.start()
-        
-        for thread in threads:
-            thread.join()
-        
-        # Verify all operations completed successfully
-        assert len(results) == 10
-        for i in range(10):
-            assert f"Response {i}" in results
-    
-    def test_cache_stats(self):
-        """Test cache statistics functionality."""
-        stats = self.cache.get_stats()
-        
-        assert "enabled" in stats
-        assert "entries" in stats
-        assert "max_size" in stats
-        assert "utilization" in stats
-        
-        # Add some entries and check stats update
-        self.cache.put("openai", "gpt-4", "prompt1", 0.7, {"output": "test1"})
-        self.cache.put("openai", "gpt-4", "prompt2", 0.7, {"output": "test2"})
-        
-        updated_stats = self.cache.get_stats()
-        assert updated_stats["entries"] == 2
-        assert updated_stats["utilization"] == 0.2  # 2/10
-
 
 class TestAdaptiveThreadPool:
     """Test the adaptive thread pool functionality."""
@@ -272,26 +160,13 @@ class TestPerformanceMonitor:
         """Test request start/end tracking."""
         start_time = self.monitor.start_request()
         time.sleep(0.01)  # Small delay
-        self.monitor.end_request(start_time, success=True, cached=False)
+        self.monitor.end_request(start_time, success=True)
         
         metrics = self.monitor.get_metrics()
         assert metrics.total_requests == 1
         assert metrics.successful_requests == 1
         assert metrics.failed_requests == 0
         assert metrics.concurrent_processing_time > 0
-    
-    def test_cache_metrics(self):
-        """Test cache hit/miss tracking."""
-        start_time = self.monitor.start_request()
-        self.monitor.end_request(start_time, success=True, cached=True)
-        
-        start_time = self.monitor.start_request()
-        self.monitor.end_request(start_time, success=True, cached=False)
-        
-        metrics = self.monitor.get_metrics()
-        assert metrics.cached_requests == 1
-        assert metrics.cache_hit_rate == 0.5
-        assert metrics.cache_miss_rate == 0.5
     
     def test_concurrent_thread_tracking(self):
         """Test concurrent thread tracking."""
@@ -386,9 +261,7 @@ class TestIntegratedPerformanceEnhancements:
 def cleanup_globals():
     """Clean up global state after each test."""
     yield
-    # Clear caches and reset monitors
     try:
-        clear_llm_cache()
         reset_performance_monitor()
     except:
         pass  # Ignore cleanup errors
