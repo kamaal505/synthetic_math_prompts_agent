@@ -17,7 +17,6 @@ import requests
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from core.llm.llm_cache import get_llm_cache
 from utils.config_manager import get_config_manager
 from utils.exceptions import APIError, ModelError
 
@@ -39,7 +38,6 @@ class LLMClient:
     def __init__(self):
         """Initialize the LLM client with API keys and configurations."""
         self.config_manager = get_config_manager()
-        self.cache = get_llm_cache()
 
         # Load API keys from environment
         self.openai_key = os.getenv("OPENAI_KEY")
@@ -84,7 +82,6 @@ class LLMClient:
                 - tokens_prompt: Number of input tokens used
                 - tokens_completion: Number of output tokens used
                 - latency: Response time in seconds
-                - cached: Whether the response was served from cache
 
         Raises:
             ModelError: If the model or provider is unsupported
@@ -98,30 +95,6 @@ class LLMClient:
             f"with {len(prompt)} character prompt"
         )
 
-        # Check cache first (thread-safe)
-        cached_response = self.cache.get(
-            provider=provider,
-            model_name=model_name,
-            prompt=prompt,
-            temperature=temperature,
-            **kwargs,
-        )
-
-        if cached_response is not None:
-            # Add latency information for cached response
-            latency = time.perf_counter() - start_time
-            cached_response["latency"] = latency
-            cached_response["cached"] = True
-
-            logger.debug(
-                f"🧵 Thread {thread_id}: Cache hit for {provider} {model_name} "
-                f"(tokens: {cached_response.get('tokens_prompt', 0)}→{cached_response.get('tokens_completion', 0)}, "
-                f"latency: {latency:.3f}s)"
-            )
-
-            return cached_response
-
-        # Track retry attempts for better error handling in concurrent scenarios
         last_exception = None
 
         for attempt in range(max_retries):
@@ -143,10 +116,8 @@ class LLMClient:
                         f"Unsupported provider: {provider}", provider=provider
                     )
 
-                # Add metadata for concurrent processing
                 latency = time.perf_counter() - start_time
                 result["latency"] = latency
-                result["cached"] = False
                 result["thread_id"] = thread_id
                 result["attempt"] = attempt + 1
 
@@ -154,16 +125,6 @@ class LLMClient:
                     f"🧵 Thread {thread_id}: Successfully called {provider} {model_name} "
                     f"(attempt {attempt + 1}, tokens: {result.get('tokens_prompt', 0)}→{result.get('tokens_completion', 0)}, "
                     f"latency: {latency:.3f}s)"
-                )
-
-                # Cache the successful response (thread-safe)
-                self.cache.put(
-                    provider=provider,
-                    model_name=model_name,
-                    prompt=prompt,
-                    temperature=temperature,
-                    response=result,
-                    **kwargs,
                 )
 
                 return result
@@ -175,11 +136,10 @@ class LLMClient:
                 )
 
                 if attempt < max_retries - 1:
-                    # Exponential backoff with jitter for concurrent scenarios
                     base_sleep = retry_delay * (2**attempt)
                     jitter = (
                         base_sleep * 0.1 * (hash(str(thread_id)) % 10) / 10
-                    )  # Add thread-specific jitter
+                    )
                     sleep_time = base_sleep + jitter
 
                     logger.debug(
@@ -187,7 +147,6 @@ class LLMClient:
                     )
                     time.sleep(sleep_time)
 
-        # All retries failed
         logger.error(
             f"🧵 Thread {thread_id}: All {max_retries} attempts failed for {provider} {model_name}"
         )
@@ -213,7 +172,6 @@ class LLMClient:
             )
 
         if model_name.startswith("gpt"):
-            # Use chat completions API for GPT models
             response = self.openai_client.chat.completions.create(
                 model=model_name,
                 messages=[{"role": role, "content": prompt}],
@@ -237,7 +195,6 @@ class LLMClient:
             }
 
         elif model_name in {"o1", "o3", "o3-mini", "o4", "o4-mini"}:
-            # Use reasoning API for o-series models
             response = self.openai_client.responses.create(
                 model=model_name,
                 reasoning={"effort": effort},
@@ -282,7 +239,6 @@ class LLMClient:
         try:
             model = genai.GenerativeModel(model_name=model_name)
 
-            # Configure generation parameters
             generation_config = genai.types.GenerationConfig(
                 temperature=temperature, **kwargs
             )
@@ -297,11 +253,10 @@ class LLMClient:
                     model_name=model_name,
                 )
 
-            # Gemini doesn't provide reliable token usage in current SDK
             return {
                 "output": response.text.strip(),
-                "tokens_prompt": 0,  # Not available
-                "tokens_completion": 0,  # Not available
+                "tokens_prompt": 0,
+                "tokens_completion": 0,
             }
 
         except Exception as e:
@@ -364,15 +319,12 @@ class LLMClient:
         """Extract token usage from OpenAI response objects."""
         usage = getattr(response, "usage", None)
 
-        # Fallback for response-style models
         if not usage and hasattr(response, "response_metadata"):
             usage = getattr(response.response_metadata, "usage", None)
 
-        # Chat format
         tokens_prompt = getattr(usage, "prompt_tokens", None)
         tokens_completion = getattr(usage, "completion_tokens", None)
 
-        # Responses format
         if tokens_prompt is None and tokens_completion is None:
             tokens_prompt = getattr(usage, "input_tokens", 0)
             tokens_completion = getattr(usage, "output_tokens", 0)

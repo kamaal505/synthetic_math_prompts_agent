@@ -133,7 +133,6 @@ def _generate_and_validate_prompt(
     start_time = perf_monitor.start_request(thread_id)
     
     success = False
-    cached = False
     retries = 0
 
     taxonomy = config.get("taxonomy")
@@ -295,7 +294,6 @@ def _generate_and_validate_prompt(
         perf_monitor.end_request(
             start_time=start_time,
             success=success,
-            cached=cached,
             retries=retries,
             thread_id=thread_id
         )

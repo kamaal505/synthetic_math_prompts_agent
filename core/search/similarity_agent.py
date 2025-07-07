@@ -68,13 +68,13 @@ Respond with JSON in this format:
         Evaluate similarity between a problem and retrieved documents.
 
         Args:
-            problem_text: The synthetic math problem to evaluate
+            problem_text: The synthetic math problem to evaluate (string only!)
             retrieved_docs: List of retrieved documents from web search
             **kwargs: Additional evaluation parameters
 
         Returns:
             Dict containing:
-                - similarity_score: Overall similarity score (0.0-1.0)
+                - similarity_score: Overall similarity score (0.0–1.0)
                 - top_matches: List of top matching documents with scores
                 - tokens_prompt: Input tokens used
                 - tokens_completion: Output tokens used
@@ -87,6 +87,10 @@ Respond with JSON in this format:
             f"Evaluating similarity for problem against {len(retrieved_docs)} documents"
         )
 
+        # 🛡️ Safeguard: if caller passes a full data object, extract only the problem
+        if isinstance(problem_text, dict) and "problem" in problem_text:
+            problem_text = problem_text["problem"]
+
         # Prepare the payload
         payload = {"problem": problem_text, "related": retrieved_docs}
 
@@ -96,24 +100,21 @@ Respond with JSON in this format:
         full_prompt = f"{system_prompt}\n\n{user_input}"
 
         try:
-            # Call the model with low effort for cost efficiency
             response = self.llm_client.call_model(
                 provider=self.provider,
                 model_name=self.model_name,
                 prompt=full_prompt,
-                temperature=0.3,  # Lower temperature for more consistent evaluation
-                effort="low" if self.provider == "openai" else None,
+                temperature=0.3,
+                effort="medium" if self.provider == "openai" else None,
                 **kwargs,
             )
 
-            # Parse the JSON response
             try:
                 parsed_result = safe_json_parse(response["output"])
             except Exception as e:
                 self.logger.error(
                     f"Failed to parse similarity response as JSON: {str(e)}"
                 )
-                # Return default values if parsing fails
                 return {
                     "similarity_score": 0.0,
                     "top_matches": [],
