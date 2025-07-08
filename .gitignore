@@ -18,3 +18,8 @@ cache/
 create_init.py_files.py
 
 database/
+
+#Download Benchmarks
+
+download_hmmt_yearly.py
+download_aime.py
