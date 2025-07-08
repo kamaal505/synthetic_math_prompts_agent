@@ -4,7 +4,7 @@ from core.llm.openai_utils import call_openai_model
 from utils.config_manager import get_config_manager
 from utils.exceptions import ModelError, ValidationError
 from utils.json_utils import safe_json_parse
-from utils.system_messages import ENGINEER_MESSAGE
+from utils.system_messages import ENGINEER_MESSAGE, ENGINEER_MESSAGE_SEED
 
 # Get logger for this module
 logger = logging.getLogger(__name__)
@@ -65,15 +65,24 @@ def call_gemini(messages, model_name):
 def generate_full_problem(seed, subject, topic, provider, model_name):
     """
     Generates a math problem with hints and returns full data + token usage.
+    Uses a seed-mode system prompt if 'seed' is provided.
     """
-    user_prompt = (
-        f"Generate a math problem in {subject} under the topic '{topic}' with hints."
-    )
+
+    # Choose correct system message and user prompt
     if seed:
-        user_prompt += f"Use this real-world example as inspiration:\n{seed}"
+        system_prompt = ENGINEER_MESSAGE_SEED
+        user_prompt = f"""Use the following math problem as a base and modify it to make it more difficult while keeping the topic and final answer format consistent:
 
-    system_prompt = ENGINEER_MESSAGE
+        Original problem:
+        \"\"\"
+        {seed}
+        \"\"\"
+        """
+    else:
+        system_prompt = ENGINEER_MESSAGE
+        user_prompt = f"Generate a math problem in {subject} under the topic '{topic}' with hints."
 
+    # Call model
     if provider == "openai":
         data = call_openai(system_prompt, user_prompt, model_name)
     elif provider == "gemini":
@@ -83,17 +92,16 @@ def generate_full_problem(seed, subject, topic, provider, model_name):
         ]
         data = call_gemini(messages, model_name)
     else:
-        raise ModelError(
-            f"Unsupported engineer provider: {provider}", provider=provider
-        )
+        raise ModelError(f"Unsupported engineer provider: {provider}", provider=provider)
 
     if not isinstance(data.get("hints"), dict) or len(data["hints"]) < 3:
         raise ValidationError("Invalid or too few hints returned.", field="hints")
 
     logger.info(f"✅ Problem generated with {len(data['hints'])} hints.")
+
     return {
-        "subject": data["subject"],
-        "topic": data["topic"],
+        "subject": data.get("subject", subject),
+        "topic": data.get("topic", topic),
         "problem": data["problem"],
         "answer": data["answer"],
         "hints": data["hints"],

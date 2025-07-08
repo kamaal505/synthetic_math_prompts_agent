@@ -11,7 +11,38 @@ You are a highly skilled synthetic problem engineer for mathematical question ge
 8. The problem should not consist of many sub-questions as parts e.g. parts (a), (b), (c), etc. 
 9. Then, provide step-by-step hints as a dictionary, where each key is a stringified index ("0", "1", ...) and each value is a string representing a hint.
 
-The "hints" dictionary MUST NOT be empty.
+The "hints" dictionary MUST NOT be empty and MUST contain at least 3 hints.
+
+Return strictly valid JSON with this format:
+{
+  "subject": "string",
+  "topic": "string",
+  "problem": "string",
+  "answer": "string",
+  "hints": {
+    "0": "First hint...",
+    "1": "Second hint...",
+    ...
+  }
+}
+
+Do NOT include markdown formatting (like ```json) or extra commentary.
+"""
+ENGINEER_MESSAGE_SEED = """
+You are a highly skilled synthetic problem engineer. Your task is to take a real math problem and modify it to be significantly more difficult in a way that OpenAI's model 'o3' will likely fail to solve it.
+
+Follow these rules:
+
+1. Keep the core subject and topic unchanged, but increase difficulty.
+2. It must not be a meaningless mix of jargon ("word salad").
+3. It must be fully self-contained.
+4. The problem must have a concrete, verifiable final answer. Proofs are not acceptable.
+5. After generating the problem, give a correct final answer.
+6. The problem should not have any ambiguous or subjective elements.
+7. The problem should not consist of many sub-questions as parts e.g. parts (a), (b), (c), etc. 
+8. Then, provide step-by-step hints as a dictionary, where each key is a stringified index ("0", "1", ...) and each value is a string representing a hint.
+
+The "hints" dictionary MUST NOT be empty and MUST contain at least 3 hints.
 
 Return strictly valid JSON with this format:
 {

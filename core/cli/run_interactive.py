@@ -63,10 +63,19 @@ def main():
     # Use enhanced taxonomy by default
     default_taxonomy_path = "taxonomy/enhanced_math_taxonomy.json"
 
-    taxonomy_path = get_input(
-        "Taxonomy file path",
-        default_taxonomy_path,
-    )
+    taxonomy_path = None  # <-- Ensure this is defined even in seed mode
+
+    use_seed = get_input("Use benchmark seed data? (y/n)", "n").strip().lower() == "y"
+    config_manager.set("use_seed_data", use_seed)
+
+    if use_seed:
+        benchmark_name = get_input("Which benchmark? (e.g., AIME, HMMT, MATH500)", "AIME").strip()
+        if not benchmark_name:
+            benchmark_name = "AIME"
+        config_manager.set("benchmark_name", benchmark_name)
+    else:
+        taxonomy_path = get_input("Taxonomy file path", default_taxonomy_path)
+
     use_search = get_input("Enable search-based similarity scoring? (y/n)", "n")
     config_manager.set("use_search", (use_search or "n").strip().lower() == "y")
 

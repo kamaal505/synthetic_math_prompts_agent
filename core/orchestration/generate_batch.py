@@ -12,6 +12,10 @@ from utils.logging_config import get_logger
 from utils.performance_monitor import get_performance_monitor
 from utils.validation import assert_valid_model_config
 
+from utils.benchmark_seed import load_benchmark
+from utils.topic_classifier import classify_subject_topic
+from random import choice
+
 # Get logger instance
 logger = get_logger(__name__)
 
@@ -124,7 +128,7 @@ def _generate_and_validate_prompt(
                 - "discarded": prompt was rejected or target model succeeded
                 - "error": an error occurred during generation
     """
-
+    
     thread_id = threading.current_thread().ident
     logger.info(f"🧵 Thread {thread_id} starting task processing")
     
@@ -144,30 +148,45 @@ def _generate_and_validate_prompt(
     # Initialize curriculum strategy for intelligent topic selection
     curriculum_strategy = create_curriculum_strategy(taxonomy) if taxonomy else None
     
-    # Use curriculum strategy for topic selection if available
-    if curriculum_strategy:
-        subject, topic, difficulty_level, topic_description = curriculum_strategy.select_topic_and_difficulty()
-    else:
-        # Fallback to legacy random selection
-        subject = choice(list(taxonomy.keys())) if taxonomy else config.get("subject")
-        topic = choice(taxonomy[subject]) if taxonomy else config.get("topic")
-        difficulty_level = None
-        topic_description = None
+    try:    
+        seed_mode = config.get("use_seed_data", False)
+        seed = None
+        subject = topic = difficulty_level = None
 
-    try:
-        # Step 1: Engineer - with pre-filtering heuristics
-        if config.get("enable_prefiltering", False):
-            # Simple heuristic check before expensive API calls
-            if _is_problem_too_easy(subject, topic):
-                logger.info("⚡ Pre-filtered as too easy, skipping")
-                return "discarded", {
-                    "subject": subject,
-                    "topic": topic,
-                    "difficulty_level": difficulty_level,
-                    "rejection_reason": "Pre-filtered as too easy",
-                }
+        if seed_mode:
+            
+            benchmark_name = config["benchmark_name"]
+            seed_problem = choice(load_benchmark(benchmark_name))
+            seed = seed_problem["problem"]
 
-        engineer_result = call_engineer(subject, topic, None, engineer_cfg, difficulty_level)
+            # Classify subject/topic from seed problem
+            subject, topic = classify_subject_topic(
+                problem_text=seed,
+                model_name="gpt-4.1",
+                cost_tracker=cost_tracker
+            )
+
+        else:
+            if curriculum_strategy:
+                subject, topic, difficulty_level, topic_description = curriculum_strategy.select_topic_and_difficulty()
+            else:
+                subject = choice(list(taxonomy.keys())) if taxonomy else config.get("subject")
+                topic = choice(taxonomy[subject]) if taxonomy else config.get("topic")
+                difficulty_level = None
+                topic_description = None
+
+            if config.get("enable_prefiltering", False):
+                if _is_problem_too_easy(subject, topic):
+                    logger.info("⚡ Pre-filtered as too easy, skipping")
+                    return "discarded", {
+                        "subject": subject,
+                        "topic": topic,
+                        "difficulty_level": difficulty_level,
+                        "rejection_reason": "Pre-filtered as too easy",
+                    }
+
+        # Step 1: Engineer — generate problem from taxonomy or modify seed
+        engineer_result = call_engineer(subject, topic, seed, engineer_cfg, difficulty_level)
         safe_log_cost(
             cost_tracker,
             engineer_cfg,
@@ -176,6 +195,7 @@ def _generate_and_validate_prompt(
             raw_output=engineer_result.get("raw_output", ""),
             raw_prompt=engineer_result.get("raw_prompt", ""),
         )
+
         core = {
             "subject": subject,
             "topic": topic,
@@ -183,6 +203,27 @@ def _generate_and_validate_prompt(
             "answer": engineer_result["answer"],
             "hints": engineer_result["hints"],
         }
+
+        if seed_mode:
+            core["benchmark_name"] = benchmark_name
+            core["source_seed"] = seed
+
+            
+            safe_log_cost(
+                cost_tracker,
+                engineer_cfg,
+                engineer_result.get("tokens_prompt", 0),
+                engineer_result.get("tokens_completion", 0),
+                raw_output=engineer_result.get("raw_output", ""),
+                raw_prompt=engineer_result.get("raw_prompt", ""),
+            )
+            core = {
+                "subject": subject,
+                "topic": topic,
+                "problem": engineer_result["problem"],
+                "answer": engineer_result["answer"],
+                "hints": engineer_result["hints"],
+            }
 
         # Step 2: Checker validation
         checker_result = call_checker(core, checker_cfg, mode="initial")
