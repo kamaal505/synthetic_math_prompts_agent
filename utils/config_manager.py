@@ -61,6 +61,7 @@ class ConfigManager:
             "GEMINI_KEY": os.getenv("GEMINI_KEY"),
             "DEEPSEEK_KEY": os.getenv("DEEPSEEK_KEY"),
             "TAVILY_API_KEY": os.getenv("TAVILY_API_KEY"),
+            "PERPLEXITY_API_KEY": os.getenv("PERPLEXITY_API_KEY"),
             # Database settings
             "DATABASE_URL": os.getenv("DATABASE_URL"),
             "DB_PATH": os.getenv("DB_PATH", "database/math_agent.db"),
@@ -152,6 +153,7 @@ class ConfigManager:
             "gemini": "GEMINI_KEY",
             "deepseek": "DEEPSEEK_KEY",
             "tavily": "TAVILY_API_KEY",
+            "perplexity": "PERPLEXITY_API_KEY",
         }
 
         env_key = key_mapping.get(provider.lower())

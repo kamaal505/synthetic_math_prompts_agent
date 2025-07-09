@@ -19,6 +19,7 @@ MODEL_PRICING = {
 
     # DeepSeek Models
     ("deepseek", "deepseek-reasoner"): (0.0015, 0.0025),  # Assumed rates
+    ("perplexity", "sonar-pro"): (0.01, 0.03),  # $10 / 1M in, $30 / 1M out
 }
 
 
