@@ -73,7 +73,8 @@ async def run_pipeline_background(
                 hints_were_corrected=prompt.get("hints_were_corrected", False),
                 cost=Decimal('0.00'),  # No cost calculation as requested
                 problem_embedding=problem_embedding,
-                similar_problems=prompt.get("similar_problems", {})
+                similar_problems=prompt.get("similar_problems", {}),
+                reference=prompt.get("reference")
             )
             create_problem(db, problem_data)
         

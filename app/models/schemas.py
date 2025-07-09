@@ -63,6 +63,7 @@ class ProblemBase(BaseModel):
     answer: str
     hints: Dict[str, Any]
     status: str
+    reference: Optional[str] = None
 
 class ProblemCreate(ProblemBase):
     batch_id: int
@@ -84,6 +85,7 @@ class Problem(ProblemBase):
     cost: Decimal
     target_model_answer: Optional[str]
     hints_were_corrected: bool
+    reference: Optional[str]
 
     class Config:
         from_attributes = True
@@ -98,6 +100,8 @@ class ProblemResponse(ProblemBase):
     cost: Decimal
     target_model_answer: Optional[str]
     hints_were_corrected: bool
+    reference: Optional[str]
+
 
     class Config:
         from_attributes = True
