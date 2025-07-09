@@ -36,5 +36,6 @@ class Problem(Base):
     cost = Column(Numeric(10, 6), default=0.00)
     target_model_answer = Column(Text, nullable=True)
     hints_were_corrected = Column(Integer, default=0)  # 0 = false, 1 = true
+    reference = Column(String(255), nullable=True)
 
     batch = relationship("Batch", back_populates="problems") 
