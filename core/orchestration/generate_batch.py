@@ -294,18 +294,12 @@ def _generate_and_validate_prompt(
                 try:
                     from core.search import score_similarity
 
-                    similarity = score_similarity(core["problem"])
+                    similarity = score_similarity(core["problem"], cost_tracker=cost_tracker)
                     core["similar_problems"] = {
                         "similarity_score": similarity.get("similarity_score"),
                         "top_matches": similarity.get("top_matches", []),
                     }
-                    safe_log_cost(
-                        cost_tracker,
-                        {"provider": "openai", "model_name": "gpt-4.1"},
-                        similarity.get("tokens_prompt", 0),
-                        similarity.get("tokens_completion", 0),
-                        raw_output=similarity.get("raw_output", ""),
-                    )
+                    
                     logger.info(
                         f"🔍 Similarity score: {core['similar_problems']['similarity_score']:.3f}"
                     )
