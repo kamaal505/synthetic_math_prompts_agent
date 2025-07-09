@@ -154,8 +154,16 @@ def _generate_and_validate_prompt(
 
         if seed_mode:
             
-            benchmark_name = config["benchmark_name"]
-            seed_problem = choice(load_benchmark(benchmark_name))
+            benchmark_name = config.get("benchmark_name", "custom_seed")
+
+            # ✅ Use seed_data if provided, fallback only if necessary
+            if "seed_data" in config:
+                seed_pool = config["seed_data"]
+            else:
+                seed_pool = load_benchmark(benchmark_name)
+
+            seed_problem = choice(seed_pool)
+
             seed = seed_problem["problem"]
 
             # Classify subject/topic from seed problem
@@ -164,6 +172,16 @@ def _generate_and_validate_prompt(
                 model_name="gpt-4.1",
                 cost_tracker=cost_tracker
             )
+
+            if not subject or not topic:
+                logger.warning(f"❌ Classification failed — subject={subject}, topic={topic}")
+                return "discarded", {
+                    "problem": seed,
+                    "answer": seed_problem.get("answer", ""),
+                    "rejection_reason": "Subject/topic classification failed",
+                }
+            
+            logger.info(f"🔍 Classified seed: subject={subject}, topic={topic}")
 
         else:
             if curriculum_strategy:
@@ -195,34 +213,23 @@ def _generate_and_validate_prompt(
             raw_prompt=engineer_result.get("raw_prompt", ""),
         )
 
+        tag = seed_problem.get("tags", ["custom_seed"])[0] if seed_mode else None
+        source_id = seed_problem.get("source_id", "N/A") if seed_mode else None
+        reference = f"{tag}:{source_id}" if seed_mode else None
+
         core = {
             "subject": subject,
             "topic": topic,
             "problem": engineer_result["problem"],
             "answer": engineer_result["answer"],
             "hints": engineer_result["hints"],
+            "reference": reference,
         }
 
         if seed_mode:
             core["benchmark_name"] = benchmark_name
             core["source_seed"] = seed
 
-            
-            safe_log_cost(
-                cost_tracker,
-                engineer_cfg,
-                engineer_result.get("tokens_prompt", 0),
-                engineer_result.get("tokens_completion", 0),
-                raw_output=engineer_result.get("raw_output", ""),
-                raw_prompt=engineer_result.get("raw_prompt", ""),
-            )
-            core = {
-                "subject": subject,
-                "topic": topic,
-                "problem": engineer_result["problem"],
-                "answer": engineer_result["answer"],
-                "hints": engineer_result["hints"],
-            }
 
         # Step 2: Checker validation
         checker_result = call_checker(core, checker_cfg, mode="initial")

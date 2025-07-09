@@ -17,10 +17,21 @@ def run_pipeline(request: GenerationRequest):
         "engineer_model": request.engineer_model.dict(),
         "checker_model": request.checker_model.dict(),
         "target_model": request.target_model.dict(),
-        "taxonomy": request.taxonomy,
-        "use_search": request.use_search
+        "use_search": request.use_search,
     }
+
+    if request.use_seed_data:
+        config["use_seed_data"] = True
+        # 👇 Only include if explicitly provided
+        if request.benchmark_name:
+            config["benchmark_name"] = request.benchmark_name
+        if request.seed_data:
+            config["seed_data"] = request.seed_data
+    else:
+        config["taxonomy"] = request.taxonomy
+
     return run_pipeline_from_config(config)
+
 
 async def run_pipeline_background(
     batch_id: int,
@@ -111,16 +122,18 @@ def start_generation_with_database(
         # Create batch record with initial cost of 0.00
         batch_data = BatchCreate(
             name=f"Batch_{request.target_model.model_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-            taxonomy_json=request.taxonomy,
+            taxonomy_json=request.taxonomy or {},
             pipeline={
                 "engineer_model": request.engineer_model.dict(),
                 "checker_model": request.checker_model.dict(),
-                "target_model": request.target_model.dict()
+                "target_model": request.target_model.dict(),
+                "use_seed_data": request.use_seed_data,
+                "benchmark_name": request.benchmark_name,
             },
             num_problems=request.num_problems,
-            batch_cost=0.00  # Initial cost, will be updated by background task
+            batch_cost=0.00
         )
-        
+                
         batch = create_batch(db, batch_data)
         
         # Prepare config for background task
@@ -129,10 +142,18 @@ def start_generation_with_database(
             "engineer_model": request.engineer_model.dict(),
             "checker_model": request.checker_model.dict(),
             "target_model": request.target_model.dict(),
-            "taxonomy": request.taxonomy,
-            "use_search": request.use_search
+            "use_search": request.use_search,
         }
-        
+
+        # Add generation mode config
+        if request.use_seed_data:
+            config["use_seed_data"] = True
+            config["benchmark_name"] = request.benchmark_name  # Optional
+            if request.seed_data:
+                config["seed_data"] = request.seed_data
+        else:
+            config["taxonomy"] = request.taxonomy
+                
         # Start background task
         background_tasks.add_task(
             run_pipeline_background,
