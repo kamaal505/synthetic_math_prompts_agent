@@ -258,8 +258,14 @@ def _generate_and_validate_prompt(
             }
 
         if corrected_hints:
+            
             logger.info(f"✍️ Checker revised {len(corrected_hints)} hint(s).")
-            core["hints"] = corrected_hints
+            for idx_str, revised_hint in corrected_hints.items():
+                if idx_str in core["hints"]:
+                    core["hints"][idx_str] = revised_hint
+                else:
+                    logger.warning(f"⚠️ Hint index '{idx_str}' not found in core['hints']")
+
         else:
             logger.info("✅ Keeping original hints from generator.")
 
