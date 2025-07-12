@@ -35,3 +35,4 @@ sympy>=1.12                      # Computer Algebra System for CAS verification
 # Pydantic (for schemas)
 # =============================
 pydantic>=2.7.1                  # Required by FastAPI and custom request/response models
+google-auth>=2.0.0                  # For verifying Google ID tokens
