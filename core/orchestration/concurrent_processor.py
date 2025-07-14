@@ -28,7 +28,7 @@ class AdaptiveThreadPool:
         min_workers: int = 2,
         max_workers: int = 20,
         adaptation_interval: int = 10,
-        target_success_rate: float = 0.3,
+        target_success_rate: float = 0.05,
     ):
         """
         Initialize the adaptive thread pool.

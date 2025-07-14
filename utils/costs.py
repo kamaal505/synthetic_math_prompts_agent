@@ -12,6 +12,7 @@ MODEL_PRICING = {
     ("openai", "o3"): (0.01, 0.04),  # $10.00 / 1M input, $40.00 / 1M output
     ("openai", "o3-mini"): (0.0011, 0.0044),  # $1.10 / 1M input, $4.40 / 1M output
     ("openai", "o4-mini"): (0.0011, 0.0044),  # $1.10 / 1M input, $4.40 / 1M output
+    ("openai", "o1"): (0.0011, 0.0044),  # $1.10 / 1M input, $4.40 / 1M output
 
     # Gemini Models
     ("gemini", "gemini-2.5-pro-preview-03-25"): (0.0025, 0.015),  # Assumed rates
