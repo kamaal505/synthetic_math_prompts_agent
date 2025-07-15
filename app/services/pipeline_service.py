@@ -35,80 +35,93 @@ def run_pipeline(request: GenerationRequest):
 
 async def run_pipeline_background(
     batch_id: int,
-    config: dict,
-    db: Session
+    config: dict
 ):
     """Background task to run the pipeline and save results to database"""
+    import asyncio
+    from concurrent.futures import ThreadPoolExecutor
+    
     try:
-        # Run the pipeline
-        result = run_pipeline_from_config(config)
-        valid_prompts = result["valid_prompts"]
-        discarded_prompts = result["discarded_prompts"]
-        total_cost = result["total_cost"]
+        # Create a new database session for the background task
+        from app.models.database import SessionLocal
+        db = SessionLocal()
         
-        # Update batch cost with the total cost from the pipeline
-        update_batch_cost(db, batch_id, total_cost)
-        
-        # Save valid prompts to database
-        for prompt in valid_prompts:
-            # Fetch embedding for the problem text
-            problem_text = prompt["problem"]
-            try:
-                embedding_list = fetch_embedding(problem_text)
-                # Convert list to dict for database storage
-                problem_embedding = {"embedding": embedding_list}
-            except Exception as e:
-                print(f"Failed to fetch embedding for problem: {str(e)}")
-                problem_embedding = None
+        try:
+            # Run the blocking pipeline in a separate thread to avoid blocking the event loop
+            loop = asyncio.get_event_loop()
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                result = await loop.run_in_executor(executor, run_pipeline_from_config, config)
             
-            problem_data = ProblemCreate(
-                batch_id=batch_id,
-                subject=prompt["subject"],
-                topic=prompt["topic"],
-                question=prompt["problem"],
-                answer=prompt["answer"],
-                hints=prompt["hints"],
-                status="valid",
-                target_model_answer=prompt.get("target_model_answer"),
-                hints_were_corrected=prompt.get("hints_were_corrected", False),
-                cost=Decimal('0.00'),  # No cost calculation as requested
-                problem_embedding=problem_embedding,
-                similar_problems=prompt.get("similar_problems", {}),
-                reference=prompt.get("reference")
-            )
-            create_problem(db, problem_data)
-        
-        # Save discarded prompts to database
-        for prompt in discarded_prompts:
-            # Fetch embedding for the problem text (even for discarded problems)
-            problem_text = prompt.get("problem", "")
-            problem_embedding = None
-            if problem_text:
+            valid_prompts = result["valid_prompts"]
+            discarded_prompts = result["discarded_prompts"]
+            total_cost = result["total_cost"]
+            
+            # Update batch cost with the total cost from the pipeline
+            update_batch_cost(db, batch_id, total_cost)
+            
+            # Save valid prompts to database
+            for prompt in valid_prompts:
+                # Fetch embedding for the problem text
+                problem_text = prompt["problem"]
                 try:
                     embedding_list = fetch_embedding(problem_text)
                     # Convert list to dict for database storage
                     problem_embedding = {"embedding": embedding_list}
                 except Exception as e:
-                    print(f"Failed to fetch embedding for discarded problem: {str(e)}")
+                    print(f"Failed to fetch embedding for problem: {str(e)}")
+                    problem_embedding = None
+                
+                problem_data = ProblemCreate(
+                    batch_id=batch_id,
+                    subject=prompt["subject"],
+                    topic=prompt["topic"],
+                    question=prompt["problem"],
+                    answer=prompt["answer"],
+                    hints=prompt["hints"],
+                    status="valid",
+                    target_model_answer=prompt.get("target_model_answer"),
+                    hints_were_corrected=prompt.get("hints_were_corrected", False),
+                    cost=Decimal('0.00'),  # No cost calculation as requested
+                    problem_embedding=problem_embedding,
+                    similar_problems=prompt.get("similar_problems", {}),
+                    reference=prompt.get("reference")
+                )
+                create_problem(db, problem_data)
             
-            problem_data = ProblemCreate(
-                batch_id=batch_id,
-                subject=prompt.get("subject", ""),
-                topic=prompt.get("topic", ""),
-                question=prompt.get("problem", ""),
-                answer=prompt.get("answer", ""),
-                hints=prompt.get("hints", {}),
-                status="discarded",
-                rejection_reason=prompt.get("rejection_reason", ""),
-                target_model_answer=prompt.get("target_model_answer"),
-                hints_were_corrected=prompt.get("hints_were_corrected", False),
-                cost=Decimal('0.00'),  # No cost calculation as requested
-                problem_embedding=problem_embedding,
-                similar_problems=prompt.get("similar_problems", {})
-            )
-            create_problem(db, problem_data)
-        
-        print(f"Background pipeline completed for batch {batch_id}. Total cost: ${total_cost:.6f}")
+            # Save discarded prompts to database
+            for prompt in discarded_prompts:
+                # Fetch embedding for the problem text (even for discarded problems)
+                problem_text = prompt.get("problem", "")
+                problem_embedding = None
+                if problem_text:
+                    try:
+                        embedding_list = fetch_embedding(problem_text)
+                        # Convert list to dict for database storage
+                        problem_embedding = {"embedding": embedding_list}
+                    except Exception as e:
+                        print(f"Failed to fetch embedding for discarded problem: {str(e)}")
+                
+                problem_data = ProblemCreate(
+                    batch_id=batch_id,
+                    subject=prompt.get("subject", ""),
+                    topic=prompt.get("topic", ""),
+                    question=prompt.get("problem", ""),
+                    answer=prompt.get("answer", ""),
+                    hints=prompt.get("hints", {}),
+                    status="discarded",
+                    rejection_reason=prompt.get("rejection_reason", ""),
+                    target_model_answer=prompt.get("target_model_answer"),
+                    hints_were_corrected=prompt.get("hints_were_corrected", False),
+                    cost=Decimal('0.00'),  # No cost calculation as requested
+                    problem_embedding=problem_embedding,
+                    similar_problems=prompt.get("similar_problems", {})
+                )
+                create_problem(db, problem_data)
+            
+            print(f"Background pipeline completed for batch {batch_id}. Total cost: ${total_cost:.6f}")
+            
+        finally:
+            db.close()
         
     except Exception as e:
         print(f"Error in background pipeline: {str(e)}")
@@ -159,8 +172,7 @@ def start_generation_with_database(
         background_tasks.add_task(
             run_pipeline_background,
             batch.id,
-            config,
-            db
+            config
         )
         
         return {
