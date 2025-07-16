@@ -5,6 +5,7 @@ import os
 BENCHMARK_PATHS = {
     "AIME": "taxonomy/benchmarks/AIME.json",
     "HMMT": "taxonomy/benchmarks/HMMT.json",
+    "GPQA_DIAMOND": "taxonomy/benchmarks/GPQA_DIAMOND.json",
 }
 
 def load_benchmark(name: str):

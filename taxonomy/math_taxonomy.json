@@ -235,18 +235,6 @@
       "Distributions",
       "Fixed Point Theorems"
     ],
-    "General Relativity": [
-      "Differential Geometry in Relativity",
-      "Einstein Field Equations",
-      "Black Holes",
-      "Singularities",
-      "Cosmological Models",
-      "Big Bang",
-      "Gravitational Waves",
-      "Geodesic Equations",
-      "Particle Motion",
-      "Energy-Momentum Conservation Laws"
-    ],
     "Geometry (High School)": [
       "Geometric Shapes and Properties",
       "Angle Relationships",
@@ -426,21 +414,6 @@
       "Random Variables",
       "Variable Transformations"
     ],
-    "Quantum Mechanics": [
-      "Historical Context",
-      "Wave-Particle Duality",
-      "Uncertainty Principle",
-      "Schrödinger Equation",
-      "Solutions of the Schrödinger Equation",
-      "Quantum States",
-      "Operators",
-      "Angular Momentum",
-      "Spin",
-      "Perturbation Theory",
-      "Approximation Methods",
-      "Quantum Entanglement",
-      "Nonlocality"
-    ],
     "Real Analysis": [
       "Sequences",
       "Series",
@@ -496,38 +469,6 @@
       "Chebyshev Polynomials",
       "Hypergeometric Functions"
     ],
-    "Special Relativity": [
-      "Historical Context",
-      "Postulates",
-      "Lorentz Transformations",
-      "Minkowski Spacetime",
-      "Invariant Intervals",
-      "Relativistic Kinematics",
-      "Relativistic Dynamics",
-      "Time Dilation",
-      "Length Contraction",
-      "Relativistic Energy",
-      "Momentum",
-      "Twin Paradox",
-      "Simultaneity",
-      "Causality",
-      "Invariance Principles"
-    ],
-    "Statistical Mechanics": [
-      "Thermodynamic Ensembles",
-      "Boltzmann Distribution",
-      "Gibbs Distribution",
-      "Partition Functions",
-      "Thermodynamic Quantities",
-      "Phase Transitions",
-      "Critical Phenomena",
-      "Microcanonical Ensemble",
-      "Canonical Ensemble",
-      "Grand Canonical Ensemble",
-      "Quantum Statistical Mechanics",
-      "Mean Field Theory",
-      "Fluctuations"
-    ],
     "Statistics": [
       "Descriptive Statistics",
       "Data Visualization",
@@ -560,21 +501,6 @@
       "Stochastic Differential Equations",
       "Ergodic Theory",
       "Stationarity"
-    ],
-    "String Theory": [
-      "Classical String Dynamics",
-      "String Quantization",
-      "Superstrings",
-      "Supersymmetry",
-      "Branes",
-      "Higher-Dimensional Objects",
-      "T-Duality",
-      "Mirror Symmetry",
-      "AdS/CFT Correspondence",
-      "Compactification",
-      "Extra Dimensions",
-      "String Field Theory",
-      "Open Problems in String Theory"
     ],
     "Tensor Analysis": [
       "Tensor Algebra",
