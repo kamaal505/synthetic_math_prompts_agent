@@ -1,46 +1,42 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from sqlalchemy.orm import Session
-from app.models.database import get_db
+from fastapi import APIRouter, HTTPException, BackgroundTasks
 from app.models.schemas import GenerationRequest, GenerationStatus
 from app.services.pipeline_service import start_generation_with_database
-from app.services.batch_service import get_batch
-from app.services.problem_service import get_problem_stats
+from app.services import batch_service
+from app.services import problem_service
 
 router = APIRouter()
 
 @router.post("/")
 async def start_generation(
     request: GenerationRequest,
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
+    background_tasks: BackgroundTasks
 ):
     """Start problem generation for a new batch"""
     try:
-        result = start_generation_with_database(request, background_tasks, db)
-        return result
+        return start_generation_with_database(request, background_tasks)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/status/{batch_id}", response_model=GenerationStatus)
-async def get_generation_status(batch_id: int, db: Session = Depends(get_db)):
+async def get_generation_status(batch_id: int):
     """Get the current status of batch generation"""
-    batch = get_batch(db, batch_id)
+    batch = batch_service.get_batch(batch_id)
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
     
     # Get problem statistics
-    stats = get_problem_stats(db, batch_id)
+    stats = problem_service.get_problem_stats(batch_id)
     
-    total_generated = stats['discarded'] + stats['solved'] + stats['valid']
-    progress = (stats['valid'] / batch.num_problems * 100) if batch.num_problems > 0 else 0
+    total_generated = stats.get('discarded', 0) + stats.get('solved', 0) + stats.get('valid', 0)
+    progress = (stats.get('valid', 0) / batch['num_problems'] * 100) if batch['num_problems'] > 0 else 0
     
     return GenerationStatus(
         batch_id=batch_id,
-        total_needed=batch.num_problems,
-        valid_generated=stats['valid'],
+        total_needed=batch['num_problems'],
+        valid_generated=stats.get('valid', 0),
         total_generated=total_generated,
         progress_percentage=round(progress, 2),
         stats=stats,
-        batch_cost=float(batch.batch_cost),
-        status="completed" if stats['valid'] >= batch.num_problems else "in_progress"
+        batch_cost=float(batch['batch_cost']),
+        status="completed" if stats.get('valid', 0) >= batch['num_problems'] else "in_progress"
     ) 

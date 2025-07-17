@@ -16,6 +16,8 @@ uvicorn[standard]>=0.29.0        # ASGI server to run FastAPI locally
 # =============================
 sqlalchemy>=2.0.0                # SQLAlchemy ORM
 alembic>=1.13.0                  # Database migrations
+google-cloud-bigquery>=3.0.0     # BigQuery client library
+sqlalchemy-bigquery>=1.8.0       # SQLAlchemy integration for BigQuery
 
 # =============================
 # Utility & Config
@@ -36,3 +38,4 @@ sympy>=1.12                      # Computer Algebra System for CAS verification
 # =============================
 pydantic>=2.7.1                  # Required by FastAPI and custom request/response models
 google-auth>=2.0.0                  # For verifying Google ID tokens
+google-cloud-bigquery-storage>=2.0.0

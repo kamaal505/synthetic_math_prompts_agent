@@ -18,7 +18,7 @@ cache/
 create_init.py_files.py
 
 database/
-
+yes/
 #Download Benchmarks
 
 download_hmmt_yearly.py

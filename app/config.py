@@ -13,6 +13,11 @@ class Settings:
     # Database
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./database/math_agent.db")
     
+    # BigQuery settings
+    BIGQUERY_PROJECT_ID: str = os.getenv("BIGQUERY_PROJECT_ID", "turing-gpt")
+    BIGQUERY_DATASET_ID: str = os.getenv("BIGQUERY_DATASET_ID", "math_agent_dataset")
+    BIGQUERY_LOCATION: str = os.getenv("BIGQUERY_LOCATION", "US")
+    
     # App settings
     APP_NAME: str = "Synthetic Math Prompts API"
     APP_VERSION: str = "1.0.0"
@@ -28,6 +33,18 @@ class Settings:
             raise ValueError("OPENAI_KEY is required")
         if not self.GEMINI_KEY:
             raise ValueError("GEMINI_KEY is required")
+    
+    def get(self, key: str, default=None):
+        """Get a setting value by key."""
+        return getattr(self, key, default)
+    
+    def get_bigquery_config(self):
+        """Get BigQuery configuration as a dictionary."""
+        return {
+            "project_id": self.BIGQUERY_PROJECT_ID,
+            "dataset_id": self.BIGQUERY_DATASET_ID,
+            "location": self.BIGQUERY_LOCATION
+        }
 
 # Create settings instance
 settings = Settings()

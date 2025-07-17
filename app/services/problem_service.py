@@ -1,46 +1,33 @@
-from sqlalchemy.orm import Session
-from app.models.models import Problem
+from app.services.bigquery_service import bigquery_service
 from app.models.schemas import ProblemCreate
 from typing import List, Optional
 
-def create_problem(db: Session, problem: ProblemCreate) -> Problem:
-    db_problem = Problem(**problem.dict())
-    db.add(db_problem)
-    db.commit()
-    db.refresh(db_problem)
-    return db_problem
+def create_problem(problem) -> dict:
+    """Create a new problem using BigQuery."""
+    if isinstance(problem, dict):
+        problem_data = problem
+    else:
+        problem_data = problem.dict()
+    return bigquery_service.create_problem(problem_data)
 
-def get_problem(db: Session, problem_id: int) -> Optional[Problem]:
-    return db.query(Problem).filter(Problem.id == problem_id).first()
+def get_problem(problem_id: int) -> Optional[dict]:
+    """Get a problem by ID using BigQuery."""
+    return bigquery_service.get_problem(problem_id)
 
-def get_problems(
-    db: Session, 
-    skip: int = 0, 
-    limit: int = 1000,
-    batch_id: Optional[int] = None,
-    status: Optional[str] = None
-) -> List[Problem]:
-    query = db.query(Problem)
-    
-    if batch_id:
-        query = query.filter(Problem.batch_id == batch_id)
-    if status:
-        query = query.filter(Problem.status == status)
-    
-    return query.offset(skip).limit(limit).all()
+def get_problems(skip: int = 0, limit: int = 1000, 
+                batch_id: Optional[int] = None, status: Optional[str] = None) -> List[dict]:
+    """Get problems with filtering and pagination using BigQuery."""
+    return bigquery_service.get_problems(skip=skip, limit=limit, 
+                                       batch_id=batch_id, status=status)
 
-def get_problems_by_batch(db: Session, batch_id: int) -> List[Problem]:
-    return db.query(Problem).filter(Problem.batch_id == batch_id).all()
+def get_problems_by_batch(batch_id: int) -> List[dict]:
+    """Get all problems for a specific batch using BigQuery."""
+    return bigquery_service.get_problems_by_batch(batch_id)
 
-def get_problem_stats(db: Session, batch_id: int) -> dict:
-    stats = {
-        'discarded': db.query(Problem).filter(
-            Problem.batch_id == batch_id, 
-            Problem.status == 'discarded'
-        ).count(),
-        'valid': db.query(Problem).filter(
-            Problem.batch_id == batch_id, 
-            Problem.status == 'valid'
-        ).count()
-    }
-    return stats 
+def get_problem_stats(batch_id: int) -> dict:
+    """Get problem statistics for a batch using BigQuery."""
+    return bigquery_service.get_problem_stats(batch_id)
+
+def delete_problems_by_batch(batch_id: int) -> bool:
+    """Delete all problems for a specific batch using BigQuery."""
+    return bigquery_service.delete_problems_by_batch(batch_id) 

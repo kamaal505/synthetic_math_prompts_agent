@@ -1,79 +1,82 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
-from typing import List, Optional
-from app.models.database import get_db
-from app.models.schemas import Batch, BatchWithStats, TargetModelUpdate
-from app.services.batch_service import get_batches, get_batch, delete_batch, update_batch_target_model, get_problems_count
-from app.services.problem_service import get_problem_stats
+from fastapi import APIRouter, HTTPException
+from app.models.schemas import BatchCreate, Batch
+from app.services import batch_service
+from typing import List
 
 router = APIRouter()
 
-@router.get("/", response_model=List[BatchWithStats])
-def get_all_batches(db: Session = Depends(get_db)):
-    batches = get_batches(db)
-    result = []
-    for batch in batches:
-        stats = get_problem_stats(db, batch.id)
-        batch_dict = Batch.from_orm(batch).dict()
-        batch_dict['stats'] = stats
-        result.append(BatchWithStats(**batch_dict))
-    return result
+@router.post("/", response_model=Batch)
+def create_batch(batch: BatchCreate):
+    """Create a new batch."""
+    try:
+        return batch_service.create_batch(batch)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create batch: {str(e)}")
 
-@router.get("/{batch_id}", response_model=BatchWithStats)
-def get_batch_by_id(batch_id: int, db: Session = Depends(get_db)):
-    batch = get_batch(db, batch_id)
-    if not batch:
-        raise HTTPException(status_code=404, detail="Batch not found")
-    
-    # Get problem statistics
-    stats = get_problem_stats(db, batch_id)
-    
-    # Convert to dict and add stats
-    batch_dict = Batch.from_orm(batch).dict()
-    batch_dict['stats'] = stats
-    
-    return BatchWithStats(**batch_dict)
+@router.get("/", response_model=List[Batch])
+def get_batches(skip: int = 0, limit: int = 100):
+    """Get all batches with pagination."""
+    try:
+        return batch_service.get_batches(skip=skip, limit=limit)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get batches: {str(e)}")
+
+@router.get("/{batch_id}", response_model=Batch)
+def get_batch(batch_id: int):
+    """Get a specific batch by ID."""
+    try:
+        batch = batch_service.get_batch(batch_id)
+        if batch is None:
+            raise HTTPException(status_code=404, detail="Batch not found")
+        return batch
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get batch: {str(e)}")
 
 @router.delete("/{batch_id}")
-def delete_batch_by_id(batch_id: int, db: Session = Depends(get_db)):
-    success = delete_batch(db, batch_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Batch not found")
-    return {"message": "Batch deleted"}
-
-@router.patch("/{batch_id}/target-model")
-def update_target_model(batch_id: int, target_update: TargetModelUpdate, db: Session = Depends(get_db)):
-    """Update the target model for a specific batch"""
-    # Check if batch exists
-    batch = get_batch(db, batch_id)
-    if not batch:
-        raise HTTPException(status_code=404, detail="Batch not found")
-    
-    # Update the target model
-    updated_batch = update_batch_target_model(db, batch_id, target_update.target_model.dict())
-    if not updated_batch:
-        raise HTTPException(status_code=500, detail="Failed to update target model")
-    
-    return {
-        "message": "Target model updated successfully",
-        "batch_id": batch_id,
-        "new_target_model": target_update.target_model.dict()
-    }
-
-@router.get("/problems/count")
-def get_problems_count_endpoint(batch_id: Optional[int] = Query(None, description="Optional batch ID to get count for specific batch"), db: Session = Depends(get_db)):
-    """Get the number of problems - either for a specific batch or total across all batches"""
-    if batch_id is not None:
-        # Check if batch exists
-        batch = get_batch(db, batch_id)
-        if not batch:
+def delete_batch(batch_id: int):
+    """Delete a batch and all its associated problems."""
+    try:
+        success = batch_service.delete_batch(batch_id)
+        if not success:
             raise HTTPException(status_code=404, detail="Batch not found")
-        
-        # Get count for specific batch
-        result = get_problems_count(db, batch_id)
-        result["batch_name"] = batch.name
-        
-        return result
-    else:
-        # Get total count across all batches
-        return get_problems_count(db) 
+        return {"message": "Batch deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete batch: {str(e)}")
+
+@router.get("/{batch_id}/problems-count")
+def get_batch_problems_count(batch_id: int):
+    """Get the number of problems for a specific batch."""
+    try:
+        return batch_service.get_problems_count(batch_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get problems count: {str(e)}")
+
+@router.put("/{batch_id}/cost")
+def update_batch_cost(batch_id: int, cost: float):
+    """Update the cost for a batch."""
+    try:
+        batch = batch_service.update_batch_cost(batch_id, cost)
+        if batch is None:
+            raise HTTPException(status_code=404, detail="Batch not found")
+        return batch
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update batch cost: {str(e)}")
+
+@router.put("/{batch_id}/target-model")
+def update_batch_target_model(batch_id: int, target_model: dict):
+    """Update the target model configuration for a batch."""
+    try:
+        batch = batch_service.update_batch_target_model(batch_id, target_model)
+        if batch is None:
+            raise HTTPException(status_code=404, detail="Batch not found")
+        return batch
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update target model: {str(e)}") 
